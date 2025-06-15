@@ -1,0 +1,588 @@
+/* 全体レイアウト */
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    display: flex;
+}
+
+/* サイドバー */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 200px;
+    height: 100vh;
+    background-color: #f0f0f0;
+    padding: 20px;
+    box-sizing: border-box;
+    z-index: 100;
+}
+
+.sidebar h2 {
+    font-size: 18px;
+    margin-top: 0;
+}
+
+.sidebar ul {
+    list-style: none;
+    padding: 0;
+}
+
+.sidebar li {
+    margin: 10px 0;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.sidebar li:hover {
+    background-color: #ddd;
+}
+
+.sidebar li.active {
+    background-color: #4285f4;
+    color: white;
+}
+
+/* メインコンテンツ */
+.main-content {
+    flex: 1; /* Keep: this allows it to take space alongside sidebar */
+    padding: 20px;
+    box-sizing: border-box;
+    max-width: 1000px;
+    width: 100%;
+    margin: 0 auto;
+    padding-left: 200px; /* From sidebar */
+    display: flex; /* Added */
+    flex-direction: column; /* Added, so its children can be flex items */
+}
+
+.report-list-center {
+    margin: 0 auto 24px auto;
+    max-width: 1000px;
+    min-width: 320px;
+    width: 100%;
+}
+
+.report-list-center .section {
+    width: 100%;
+}
+
+/* 一覧は左寄せ、見出しは中央寄せ */
+.report-list-center h2 {
+    text-align: center;
+}
+
+.report-list-center ul li {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin: 16px 0;
+    line-height: 1.4;
+}
+
+/* ページングボタンを最下部固定 */
+.report-list-center .section {
+    position: relative;
+    min-height: 180px;
+    padding-bottom: 56px;
+}
+
+#reportPaging {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 16px;
+}
+
+/* 手順書一覧のページングにも同じスタイルを適用 */
+#procedurePaging {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 16px;
+}
+
+/* ボタンサイズを小さく */
+#reportPaging button,
+#procedurePaging button {
+    padding: 8px 16px;
+    font-size: 14px;
+    min-width: 64px;
+    height: 36px;
+    border: none;
+    border-radius: 4px;
+    margin: 0 4px;
+    background-color: #4285f4;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.report-detail-center {
+    margin: 0 auto 24px auto; /* Keep existing horizontal centering and width */
+    max-width: 1000px;
+    min-width: 320px;
+    width: 100%;
+    display: flex; /* Added */
+    flex-direction: column; /* Added */
+    flex-grow: 1; /* Allow the panel to grow within main-content */
+    /* Consider height: 100% if flex-grow alone is not enough,
+       but parent needs to provide a bounded height. */
+}
+
+.report-detail-center .section {
+    position: relative; /* Keep if needed for other elements like paging */
+    /* min-height: 220px; /* Consider reducing or making it flex-basis if needed */
+    /* padding-bottom: 56px; /* May need to adjust if it interferes with full height */
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Allow this section to grow within its parent panel */
+    /* overflow: auto; /* Add if content might exceed section and needs scrolling */
+}
+
+.report-detail-title {
+    display: flex;
+    align-items: center;
+    margin: 24px 0 16px 0;
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+.report-detail-meta {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+}
+
+.report-detail-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.save-btn {
+    background-color: #34a853 !important;
+    color: #fff !important;
+    border: none;
+    font-weight: bold;
+    padding: 8px 16px;
+    font-size: 14px;
+    min-width: 64px;
+    height: 36px;
+}
+
+.save-btn:disabled {
+    background-color: #ccc !important;
+    color: #fff !important;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.delete-btn {
+    background-color: #ea4335 !important;
+    color: #fff !important;
+    border: none;
+    font-weight: bold;
+    padding: 8px 16px;
+    font-size: 14px;
+    min-width: 64px;
+    height: 36px;
+}
+
+#reportDate,
+#reportTitle {
+    font-size: 1.3em;
+    font-weight: bold;
+}
+
+.edit-btn {
+    background-color: #4285f4 !important;
+    color: #fff !important;
+    border: none;
+    font-weight: bold;
+    padding: 8px 16px;
+    font-size: 14px;
+    min-width: 64px;
+    height: 36px;
+}
+
+#saveReportBtn,
+#deleteReportBtn {
+    padding: 8px 16px;
+    font-size: 14px;
+    min-width: 64px;
+    margin-left: 8px;
+    height: 36px;
+}
+
+#backToListBtn {
+    padding: 8px 16px;
+    font-size: 14px;
+    min-width: 120px;
+    margin-bottom: 8px;
+    height: 36px;
+}
+
+#reportContent {
+    width: 100%;
+    /* min-height: 180px; */ /* Removed */
+    font-size: 1.1em;
+    margin-top: 12px;
+    box-sizing: border-box;
+    flex-grow: 1; /* Added */
+}
+
+#procedureContent {
+    width: 100%;
+    font-size: 1.1em; /* Assuming similar styling to reportContent */
+    margin-top: 12px; /* Assuming similar styling */
+    box-sizing: border-box;
+    flex-grow: 1;
+    /* min-height: 50px; /* Optionally, add a smaller min-height */
+}
+
+.textarea-container {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    /* Consider adding a min-height here if the section itself doesn't control height enough */
+    min-height: 200px; /* Example, adjust as needed */
+}
+
+#reportPaging button:disabled {
+    background-color: #ccc !important;
+    color: #fff !important;
+    border: none !important;
+    cursor: not-allowed !important;
+    opacity: 0.7;
+
+    #procedurePaging button:disabled {
+        background-color: #ccc !important;
+        color: #fff !important;
+        border: none !important;
+        cursor: not-allowed !important;
+        opacity: 0.7;
+    }
+}
+
+#pageInfo {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    line-height: 36px;
+    font-size: 16px;
+}
+
+#mainTitle {
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+}
+
+.content-flex {
+    display: flex;
+    gap: 32px;
+    width: 100%;
+    min-height: 500px;
+}
+
+.left-panels {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.right-panel {
+    width: 320px;
+    min-width: 260px;
+    max-width: 400px;
+    background: #fafbfc;
+    border-radius: 8px;
+    box-shadow: 0 0 4px #eee;
+    padding: 16px 8px;
+    margin-left: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+/* ヘッダー */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.header h1 {
+    margin: 0;
+    color: #333;
+}
+
+/* セクション(従来のスタイル) */
+.section {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+}
+
+/* ボタン・ステータスのスタイル */
+button {
+    background-color: #4285f4;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 10px 0;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #3367d6;
+}
+
+.stop-btn {
+    background-color: #ea4335 !important;
+}
+
+.process-btn {
+    background-color: #34a853;
+}
+
+.process-btn:hover {
+    background-color: #2d9249;
+}
+
+.status {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.success {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.error {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.processing {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.hidden {
+    display: none;
+}
+
+.recording-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background-color: #ea4335;
+    border-radius: 50%;
+    margin-right: 8px;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.3;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+/* Googleログインボタン用 */
+#googleSignInBtn {
+    margin-left: auto;
+}
+
+#backToListBtn {
+    background: transparent !important;
+    color: #222 !important;
+    border: none !important;
+    font-weight: bold;
+    padding: 8px 16px;
+    font-size: 14px;
+    min-width: 120px;
+    margin-bottom: 8px;
+    height: 36px;
+    box-shadow: none;
+}
+
+#procedurePaging button:disabled {
+    background-color: #ccc !important;
+    color: #fff !important;
+    border: none !important;
+    cursor: not-allowed !important;
+    opacity: 0.7;
+}
+
+/* Specific styles for moved "Back to list" buttons in their new locations */
+div#panelReportDetail > button#backToReportListBtn,
+div#panelProcedureDetail > button#backToProcedureListBtn {
+    background: transparent !important;
+    color: #222 !important;
+    border: none !important;
+    font-weight: bold;
+    padding: 8px 16px;
+    font-size: 14px;
+    min-width: 120px; /* Minimum width */
+    height: 36px;
+    box-shadow: none;
+    margin-bottom: 16px; /* Desired bottom margin */
+    margin-top: 8px; /* Adding some top margin for balance */
+    /* display: inline-block; by default, buttons are inline-block */
+    /* cursor: pointer; is inherited from generic button style */
+}
+
+/* Detail Header Styles */
+.detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+}
+
+.detail-header #reportTitle,
+.detail-header #procedureTitle {
+    flex-grow: 1;
+    text-align: center;
+    font-size: 1.5em; /* Ensure consistent font size with original .report-detail-title */
+    font-weight: bold; /* Ensure consistent font weight */
+    /* Adjust margins if needed, for now flex-grow and text-align should handle it */
+}
+
+/* Adjust back buttons if they are part of detail-header now */
+.detail-header #backToReportListBtn,
+.detail-header #backToProcedureListBtn {
+    margin-bottom: 0; /* Remove bottom margin if it was previously set for spacing */
+    /* The following are inherited from #backToListBtn, ensure they are what you want or override */
+    /* background: transparent !important; */
+    /* color: #222 !important; */
+    /* border: none !important; */
+    /* font-weight: bold; */
+    /* padding: 8px 16px; */
+    /* font-size: 14px; */
+    /* min-width: 120px; */
+    /* height: 36px; */
+    /* box-shadow: none; */
+}
+
+
+.actions-menu {
+    position: relative;
+    /* margin-left: auto; /* Use this if justify-content: space-between is not enough */
+}
+
+.ellipsis-button {
+    background: transparent;
+    border: none;
+    padding: 8px;
+    font-size: 20px;
+    cursor: pointer;
+    color: #333; /* Give it a color to be visible */
+}
+
+.actions-dropdown {
+    position: absolute;
+    right: 0;
+    top: 100%; /* Position below the ellipsis button */
+    display: none;
+    background-color: white;
+    border: 1px solid #ccc;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    z-index: 100;
+    min-width: 160px; /* Adjusted min-width */
+    border-radius: 4px; /* Optional: for rounded corners */
+}
+
+.actions-dropdown button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 15px; /* Adjusted padding */
+    background-color: transparent; /* Ensure no specific background from .edit-btn etc. */
+    color: #333; /* Ensure text color is consistent */
+    border: none; /* Remove individual button borders */
+    border-bottom: 1px solid #eee; /* Optional: separator for buttons */
+    margin: 0;
+    font-size: 14px; /* Consistent font size */
+    font-weight: normal; /* Override bold from .edit-btn if not desired */
+    cursor: pointer;
+    border-radius: 0; /* Remove border-radius from individual buttons if any */
+}
+
+.actions-dropdown button:last-child {
+    border-bottom: none; /* No border for the last button */
+}
+
+.actions-dropdown button:hover {
+    background-color: #f5f5f5; /* Hover effect for dropdown items */
+}
+
+/* Override specific button styles (.edit-btn, .save-btn, .delete-btn) when inside dropdown */
+.actions-dropdown .edit-btn,
+.actions-dropdown .save-btn,
+.actions-dropdown .delete-btn {
+    background-color: transparent !important; /* Important to override existing specificities */
+    color: #333 !important; /* Ensure text color is consistent */
+    font-weight: normal; /* Standardize font weight */
+    padding: 10px 15px; /* Standardize padding */
+    margin: 0;
+    width: 100%; /* Ensure full width */
+    height: auto; /* Let padding define height */
+    min-width: 0; /* Override min-width */
+    box-shadow: none; /* Remove any box-shadow from original buttons */
+}
+
+/* Special handling for save/delete buttons if they need to retain color, but text-style */
+.actions-dropdown .save-btn:not(:hover) {
+    /* color: #34a853 !important; /* Keep text color for save */
+}
+.actions-dropdown .delete-btn:not(:hover) {
+    /* color: #ea4335 !important; /* Keep text color for delete */
+}
+
+
+.show-dropdown {
+    display: block;
+}
+
+#makeReportBtn:disabled {
+    background-color: #ccc !important;
+    color: #fff !important;
+    cursor: not-allowed !important;
+    opacity: 0.7;
+}

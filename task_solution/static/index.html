@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Solution</title>
+  <!-- Flask の静的ファイルとして読み込む場合、絶対パスで /static を明記 -->
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+  <div class="sidebar">
+    <h2>メニュー</h2>
+    <ul>
+      <li id="menuRecording" class="active">作業記録機能</li>
+      <li id="menuProcedure">作業手順記録機能</li>
+      <li id="menuReportList">レポート一覧</li>
+      <li id="menuProcedureList">手順書一覧</li>
+    </ul>
+  </div>
+
+  <div class="main-content">
+    <div class="header">
+      <h1 id="mainTitle">TaskSolution</h1>
+
+      <!-- Google Identity Servicesの設定 -->
+      <div id="g_id_onload" data-client_id="449349434961-h0kjj9f7j4u8n6qdi6a914a5jqadu9hs.apps.googleusercontent.com"
+        data-context="signin" data-ux_mode="popup" data-callback="handleGoogleSignIn" data-auto_prompt="false"></div>
+      <!-- Googleログインボタンを配置する領域 -->
+      <div id="googleSignInBtn" style="margin-left: 1rem;"></div>
+
+      <!-- ログイン状況を表示する領域 -->
+      <div id="loginStatus" class="status hidden"></div>
+    </div>
+    <!-- レポート詳細パネル（タイトル直下・中央揃え） -->
+    <div id="panelReportDetail" class="hidden report-detail-center">
+      <button id="backToReportListBtn">一覧に戻る</button>
+      <div class="section">
+        <div class="detail-header">
+          <span id="reportTitle" class="editable"></span>
+          <div class="actions-menu">
+            <button class="ellipsis-button">...</button>
+            <div class="actions-dropdown">
+              <button id="editReportBtn" class="edit-btn">Edit</button>
+              <button id="previewReportBtn" class="edit-btn" style="display:none;">Preview</button>
+              <button id="saveReportBtn" class="save-btn">Save</button>
+              <button id="deleteReportBtn" class="delete-btn">Delete</button>
+            </div>
+          </div>
+        </div>
+        <div id="reportContentView" style="display:none;"></div>
+        <div class="textarea-container">
+          <textarea id="reportContent" class="editable" style="width:100%;"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- レポート一覧パネル（タイトル直下・中央揃え） -->
+    <div id="panelReportList" class="hidden report-list-center">
+      <div class="section">
+        <h2 style="margin-top:0;">レポート一覧</h2>
+        <div id="reportListContainer">
+          <!-- レポート一覧がここに表示される -->
+        </div>
+        <div id="reportPaging">
+          <button id="prevPageBtn">前へ</button>
+          <span id="pageInfo"></span>
+          <button id="nextPageBtn">次へ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 作業記録機能パネル -->
+    <div id="panelRecording">
+      <div class="section">
+        <h2 style="margin-top:0;">作業記録機能</h2>
+        <p>
+          「録画を開始」ボタンをクリックすると、画面共有の選択ダイアログが表示されます。<br>
+          選択したスクリーンをAIエージェントが解析し、作業ログを取得します。
+
+        </p>
+        <p>「AIサポートの通知」をONにすると、作業改善のアドバイスや、危険な作業手順の警告を通知します。</p>
+        <p>「1日の作業レポートを生成」ボタンをクリックすると、作業ログから今日の作業レポートを生成します。</p>
+        <div>
+          <label for="userRequestInput">LLMへの追加リクエスト:</label>
+          <textarea id="userRequestInput" placeholder="スクリーンショット分析用LLMへの追加リクエストを入力してください"
+            style="width:100%;height:100px;"></textarea>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <button id="recordBtn">録画を開始</button>
+            <input type="checkbox" id="aiSupportCheckbox" style="margin-left: 10px;">
+            <label for="aiSupportCheckbox" style="margin-left: 5px;">AIのサポートを受ける</label>
+          </div>
+          <div>
+            <button id="makeReportBtn" class="process-btn" style="margin-left: 20px;">1日の作業レポートを生成</button>
+            <span id="makeReportStatus" style="margin-left: 16px; font-weight: bold; color: #34a853;"></span>
+          </div>
+        </div>
+        <div id="legacyStatusMessage" class="status hidden"></div>
+      </div>
+      <div id="statusMessage" class="status hidden"></div>
+      <h4 style="margin-bottom: 3px; margin-top: 20px; font-size: 1em;">AIサポートログ</h4>
+      <div id="notificationLogArea"
+        style="height: 200px; overflow-y: auto; background-color: #f0f0f0; border: 1px solid #ccc; padding: 10px; margin-top: 10px;">
+      </div>
+      <div id="result" class="hidden">
+        <!-- 結果表示領域 -->
+      </div>
+    </div>
+
+    <!-- 作業手順記録機能パネル -->
+    <div id="panelProcedure" class="hidden">
+      <div class="section">
+        <h2 style="margin-top:0;">作業手順記録機能</h2>
+        <p>
+          作業名を入力し「記録開始」ボタンをクリックすると、画面共有の選択ダイアログが表示されます。<br>
+          スクリーンを選択すると、そのスクリーンの録画が開始されます。<br>
+          録画した動画を解析し、作業手順書を作成します。<br>
+
+          ユーザーリクエストで、手順書作成時に気を付けてほしいことを指定することができます。
+        </p>
+        <input type="text" id="taskNameInput" placeholder="作業名を入力 (必須)" required
+          style="width: 250px; font-size: 16px; padding: 8px; margin-right: 10px;">
+        <div style="margin-top: 10px; margin-bottom: 10px;">
+          <label for="procedureUserRequestInput">LLMへの追加リクエスト:</label>
+          <textarea id="procedureUserRequestInput" placeholder="スクリーンショット分析用LLMへの追加リクエストを入力してください"
+            style="width:100%;height:100px; margin-top: 5px;"></textarea>
+        </div>
+        <!-- New wrapper for button and status -->
+        <div style="display: flex; align-items: center; margin-top: 10px;">
+          <button id="createProcedureBtn" class="record-btn">記録開始</button>
+          <div id="procedureResult" class="status hidden" style="margin-left: 10px;"></div>
+        </div>
+      </div>
+    </div>
+    <!-- The procedureResult DIV is MOVED from here -->
+    <!-- 手順書一覧パネル (レポート一覧と同じ構造・クラス) -->
+    <div id="panelProcedureList" class="hidden report-list-center">
+      <div class="section">
+        <h2 style="margin-top:0;">手順書一覧</h2>
+        <div id="procedureListContainer">
+          <!-- 手順書一覧がここに表示される -->
+        </div>
+        <div id="procedurePaging">
+          <button id="prevProcedurePageBtn">前へ</button>
+          <span id="procedurePageInfo"></span>
+          <button id="nextProcedurePageBtn">次へ</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- 手順書詳細パネル -->
+    <div id="panelProcedureDetail" class="hidden report-detail-center">
+      <button id="backToProcedureListBtn">一覧に戻る</button>
+      <div class="section">
+        <div class="detail-header">
+          <span id="procedureTitle" class="editable"></span>
+          <div class="actions-menu">
+            <button class="ellipsis-button">...</button>
+            <div class="actions-dropdown">
+              <button id="editProcedureBtn" class="edit-btn">Edit</button>
+              <button id="previewProcedureBtn" class="edit-btn" style="display:none;">Preview</button>
+              <button id="saveProcedureBtn" class="save-btn">Save</button>
+              <button id="deleteProcedureBtn" class="delete-btn">Delete</button>
+            </div>
+          </div>
+        </div>
+        <div id="procedureContentView" style="display:none;"></div>
+        <div class="textarea-container">
+          <textarea id="procedureContent" class="editable" style="width:100%;"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- レポート詳細パネル -->
+
+  <!-- Google Identity Servicesを先に読み込む -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- marked.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <!-- Flask の静的ファイルとして読み込む場合、絶対パスで /static を明記 -->
+  <!-- Googleログイン関係 -->
+  <script src="/static/js/googleLogin.js"></script>
+
+  <!-- その他のJSファイル -->
+  <script src="/static/js/utils.js"></script>
+  <script src="/static/js/procedure.js"></script>
+  <script src="/static/js/report.js"></script>
+  <script src="/static/js/menu.js"></script>
+  <script src="/static/js/recording.js"></script>
+  <!-- ログイン状態確認用スクリプト -->
+  <script>
+    function checkLogin() {
+      fetch('/check_login')
+        .then(response => response.json())
+        .then(data => {
+          const loginStatus = document.getElementById('loginStatus');
+          if (data.status === 'logged_in') {
+            loginStatus.textContent = data.email;
+            loginStatus.classList.remove("hidden");
+            document.getElementById("googleSignInBtn").style.display = "none";
+          }
+        })
+        .catch(err => console.error("Login check error:", err));
+    }
+    window.addEventListener('load', checkLogin);
+  </script>
+</body>
+
+</html>
