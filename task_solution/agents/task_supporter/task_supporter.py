@@ -10,11 +10,13 @@ from vertexai.generative_models import Part
 from ..vertex_ai.base_vertex_ai import BaseVertexAI
 
 
-class SupportType(Enum):
-    NOTHING = "nothing"
-    SUPPORT = "support"
-    ADVICE = "advice"
-    ALERT = "alert"
+class SupportType(str, Enum):
+    """サポートタイプの列挙型"""
+
+    NOTHING = "NOTHING"
+    SUPPORT = "SUPPORT"
+    ADVICE = "ADVICE"
+    ALERT = "ALERT"
 
     @classmethod
     def to_comma_string(cls):
