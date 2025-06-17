@@ -44,11 +44,6 @@ def generate_notification_message(encoded_frames, log_context="") -> str:
 
         return message
     except Exception as e:
-        end_time = time.time()
-        logger.info(
-            "generate_notification_message execution time (error): "
-            f"{end_time - start_time} seconds"
-        )
         log_context_snippet = f"{log_context[:50]}..." if log_context else "N/A"
         logger.error(
             "通知メッセージ生成中にエラーが発生しました: "
