@@ -69,7 +69,7 @@ class TimeTableList(BaseModel):
                 for task_type, duration in type_durations.items()
             ]
         )
-        return whole_task_duration + task_durations
+        return f"{whole_task_duration}\n{task_durations}"
 
 
 class TimeTableMaker(BaseVertexAI):
