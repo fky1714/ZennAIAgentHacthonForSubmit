@@ -6,13 +6,23 @@ from agents import TaskSupporter, NotifyDesider
 # ロガー初期化
 logger = Logger(name="notify_service").get_logger()
 
+# Last notification time, initialized to 0.0 to allow immediate first notification
+last_notification_time = 0.0
+
 
 def generate_notification_message(encoded_frames, log_context="") -> str:
     """
     ユーザーをサポートするための通知メッセージを生成する。
     log_context: 過去のサポートログのコンテキスト
     """
-    start_time = time.time()
+    current_time = time.time()
+    global last_notification_time
+
+    # Check for cooldown
+    if current_time - last_notification_time < 180:  # 3 minutes cooldown
+        logger.info("Notification skipped due to 3-minute cooldown.")
+        return ""
+
     try:
         frames = [frame.split(",")[1] for frame in encoded_frames if "," in frame]
 
@@ -28,13 +38,10 @@ def generate_notification_message(encoded_frames, log_context="") -> str:
         ):
             message = ""
         else:
+            if message:  # If a message was generated
+                last_notification_time = current_time
             message = support_info.make_message()
 
-        end_time = time.time()
-        logger.info(
-            "generate_notification_message execution time: "
-            f"{end_time - start_time} seconds"
-        )
         return message
     except Exception as e:
         end_time = time.time()
