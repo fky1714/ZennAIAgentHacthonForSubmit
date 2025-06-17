@@ -24,14 +24,14 @@ class NotifyInfo(BaseModel):
     @classmethod
     def from_json_data(cls, json_data: Dict[str, Any]) -> "NotifyInfo":
         return cls(
-            importance_level=json_data["importance_level"],
+            importance_level=int(json_data["importance_level"]),
             is_duplicate=json_data["is_duplicate"],
         )
 
     @property
     def should_notify(self) -> bool:
-        """通知すべきかどうかを判定（重複でない かつ 重要度が3以上）"""
-        return not self.is_duplicate and self.importance_level >= 4
+        """通知すべきかどうかを判定（重複でない かつ 最重要）"""
+        return not self.is_duplicate and self.importance_level >= 5
 
 
 class NotifyDesider(BaseVertexAI):
