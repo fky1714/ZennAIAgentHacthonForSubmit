@@ -26,10 +26,11 @@ class BaseVertexAI:
         )
 
     def invoke(self, contents):
-        self.logger.info(f"contents > {contents[30:]}")
+        self.logger.info(f"contents > {contents[:50]}")
         response = self.model.generate_content(
             contents,
             generation_config=self.generation_config,
         )
-        self.logger.info(f"response > {response}")
+        output_res = response.text.replace("\n", " ")[:50]
+        self.logger.info(f"response > {output_res}")
         return response
