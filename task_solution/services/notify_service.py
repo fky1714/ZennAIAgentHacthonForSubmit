@@ -7,7 +7,7 @@ from agents import TaskSupporter, NotifyDesider
 logger = Logger(name="notify_service").get_logger()
 
 last_notification_time = 0.0
-quwiet_duration = 180
+quwiet_duration = 60
 
 def can_notify_timing() -> bool:
     current_time = time.time()
