@@ -31,7 +31,7 @@ class NotifyInfo(BaseModel):
     @property
     def should_notify(self) -> bool:
         """通知すべきかどうかを判定（重複でない かつ 重要度が3以上）"""
-        return not self.is_duplicate and self.importance_level >= 4
+        return not self.is_duplicate and self.importance_level >= 3
 
 
 class NotifyDesider(BaseVertexAI):
