@@ -39,7 +39,10 @@ def generate_notification_message(encoded_frames, log_context="") -> str:
             return ""
         else:
             last_notification_time = current_time
-            return support_info.make_message()
+            message = support_info.make_message()
+            logger.info(f"message => {message}")
+            return message
+            
     except Exception as e:
         log_context_snippet = f"{log_context[:50]}..." if log_context else "N/A"
         logger.error(
