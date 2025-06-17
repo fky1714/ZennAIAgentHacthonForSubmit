@@ -24,7 +24,7 @@ class NotifyInfo(BaseModel):
     @classmethod
     def from_json_data(cls, json_data: Dict[str, Any]) -> "NotifyInfo":
         return cls(
-            importance_level=json_data["importance_level"],
+            importance_level=int(json_data["importance_level"]),
             is_duplicate=json_data["is_duplicate"],
         )
 

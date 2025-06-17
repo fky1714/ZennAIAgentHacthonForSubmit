@@ -30,19 +30,16 @@ def generate_notification_message(encoded_frames, log_context="") -> str:
         support_info = ts.get_support(
             encoded_frames=frames,
         )
-
+        
         nd = NotifyDesider()
         notify_log_string = log_context.split("\n")[0]
         if not nd.is_need_notify(
             support_info=support_info, log_context=notify_log_string
         ):
-            message = ""
+            return ""
         else:
-            if message:  # If a message was generated
-                last_notification_time = current_time
-            message = support_info.make_message()
-
-        return message
+            last_notification_time = current_time
+            return support_info.make_message()
     except Exception as e:
         log_context_snippet = f"{log_context[:50]}..." if log_context else "N/A"
         logger.error(
