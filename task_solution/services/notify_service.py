@@ -6,21 +6,21 @@ from agents import TaskSupporter, NotifyDesider
 # ロガー初期化
 logger = Logger(name="notify_service").get_logger()
 
-# Last notification time, initialized to 0.0 to allow immediate first notification
 last_notification_time = 0.0
+quwiet_duration = 180
 
+def can_notify_timing() -> bool:
+    current_time = time.time()
+    global last_notification_time
+    return current_time - last_notification_time >= quwiet_duration
 
 def generate_notification_message(encoded_frames, log_context="") -> str:
     """
     ユーザーをサポートするための通知メッセージを生成する。
     log_context: 過去のサポートログのコンテキスト
     """
-    current_time = time.time()
-    global last_notification_time
 
-    # Check for cooldown
-    if current_time - last_notification_time < 180:  # 3 minutes cooldown
-        logger.info("Notification skipped due to 3-minute cooldown.")
+    if not can_notify_timing():
         return ""
 
     try:
@@ -38,11 +38,15 @@ def generate_notification_message(encoded_frames, log_context="") -> str:
         ):
             return ""
         else:
-            last_notification_time = current_time
-            message = support_info.make_message()
-            logger.info(f"message => {message}")
-            return message
-            
+            if can_notify_timing():  # メッセージ生成時間中にすでに通知されている場合があるため、再確認
+                global last_notification_time
+                last_notification_time =  time.time()
+                message = support_info.make_message()
+                logger.info(f"message => {message}")
+                return message
+            else:
+                return ""
+
     except Exception as e:
         log_context_snippet = f"{log_context[:50]}..." if log_context else "N/A"
         logger.error(
