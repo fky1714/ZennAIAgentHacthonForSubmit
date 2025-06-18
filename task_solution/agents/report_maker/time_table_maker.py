@@ -4,6 +4,13 @@ import json
 from pydantic import BaseModel, Field
 from typing import Dict, Any
 from ..vertex_ai.base_vertex_ai import BaseVertexAI
+import matplotlib
+matplotlib.use('Agg') # Ensure matplotlib doesn't try to use a GUI backend
+import matplotlib.pyplot as plt
+import os
+import uuid
+# from collections import defaultdict # Already imported
+# from datetime import timedelta # Already imported
 
 
 class TimeTable(BaseModel):
@@ -70,6 +77,45 @@ class TimeTableList(BaseModel):
             ]
         )
         return f"{whole_task_duration}\n{task_durations}"
+
+    def generate_pie_chart_path(self) -> str:
+        type_durations = defaultdict(timedelta)
+        for t in self.time_table:
+            # Exclude '休憩' (Rest) and '離席' (Away) from the chart
+            if t.task_type != "休憩" and t.task_type != "離席":
+                type_durations[t.task_type] += t.duration
+
+        if not type_durations:
+            return "" # Return empty if no data to plot
+
+        labels = type_durations.keys()
+        # Convert timedelta objects to total minutes for plotting
+        sizes = [td.total_seconds() / 60 for td in type_durations.values()]
+
+        # Create the directory for charts if it doesn't exist
+        charts_dir = os.path.join(os.path.dirname(__file__), "..", "..", "static", "generated_charts")
+        os.makedirs(charts_dir, exist_ok=True)
+
+        # Generate unique filename
+        filename = f"pie_chart_{uuid.uuid4().hex}.png"
+        filepath = os.path.join(charts_dir, filename)
+
+        fig, ax = plt.subplots()
+        ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
+        ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+        plt.title("作業時間割合") # Title: "Work Time Percentage"
+
+        try:
+            plt.savefig(filepath)
+            plt.close(fig) # Close the figure to free memory
+        except Exception as e:
+            # Handle potential errors during saving (e.g. permissions)
+            # For now, we'll print an error and return an empty path
+            print(f"Error saving pie chart: {e}")
+            return ""
+
+        # Return the web-accessible path
+        return f"/static/generated_charts/{filename}"
 
 
 class TimeTableMaker(BaseVertexAI):

@@ -52,12 +52,16 @@ class ReportInfo(BaseModel):
         template_path = os.path.join(os.path.dirname(__file__), "report_template.md")
         with open(template_path, "r", encoding="utf-8") as f:
             report_template = f.read()
+
+        chart_image_path = time_table_list.generate_pie_chart_path() # Generate the chart
+
         return report_template.format(
             abstract=self.abstract,
             done_tasks=self.done_tasks_to_str(),
             problems=self.problems_to_str(),
             feedback=self.feedback,
             task_duration=time_table_list.total_duration_by_type(),
+            chart_image_path=chart_image_path  # Pass the chart path to the template
         )
 
 
