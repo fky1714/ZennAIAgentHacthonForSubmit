@@ -83,7 +83,9 @@
             return;
         }
         window.currentProcedure = data.procedure;
-        console.log("Loaded procedure data:", JSON.stringify(window.currentProcedure)); // <-- ADD THIS LINE
+        window.originalProcedureId = data.procedure.task_name; // Store the original ID
+        console.log("Loaded procedure data:", JSON.stringify(window.currentProcedure));
+        console.log("Original Procedure ID for save:", window.originalProcedureId); // Log the original ID
         console.log("[showProcedureDetail] Set window.currentProcedure to:", window.currentProcedure);
         window.originalProcedure = { ...window.currentProcedure };
         window.procedureIsEditing = false;
@@ -178,10 +180,25 @@ async function saveProcedure() {
         return;
     }
 
-    const taskNameForSave = window.currentProcedure.task_name;
-    const contentForSave = window.currentProcedure.content;
+    // const taskNameForSave = window.currentProcedure.task_name; // Use originalProcedureId for URL
+    const idForURL = window.originalProcedureId;
+    const contentForSave = window.currentProcedure.content; // Content can be from the edited currentProcedure
 
-    if (!taskNameForSave || taskNameForSave.trim() === "") {
+    // Check for idForURL before proceeding
+    if (!idForURL || idForURL.trim() === "") {
+        alert("エラー: 元の手順書IDが不明です。ページを再読み込みしてください。");
+        console.error("Save aborted: originalProcedureId is not set.");
+        const saveBtn = document.getElementById("saveProcedureBtn");
+        if (saveBtn) saveBtn.disabled = false; // Re-enable button
+        return;
+    }
+
+    // The UI task_name (title) can still be empty, but we use originalProcedureId for the PUT request URL.
+    // The content of currentProcedure.task_name (which is the title in the UI) will be part of the 'content' body if needed by backend,
+    // but for now, the body only sends 'content'. If the title needs to be updated, the backend API and this payload need adjustment.
+    // For this subtask, we are only changing the URL to use the original ID.
+    // We can still check if the *displayed* title is empty, if that's a product requirement.
+    if (!window.currentProcedure.task_name || window.currentProcedure.task_name.trim() === "") {
         alert("手順名が空のため保存できません。タイトルを入力してください。"); // Procedure name is empty, cannot save. Please enter a title.
         return;
     }
@@ -190,7 +207,7 @@ async function saveProcedure() {
     if (saveBtn) saveBtn.disabled = true;
 
     try {
-        const res = await fetch(`/api/procedures/${encodeURIComponent(taskNameForSave)}`, {
+        const res = await fetch(`/api/procedures/${encodeURIComponent(idForURL)}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

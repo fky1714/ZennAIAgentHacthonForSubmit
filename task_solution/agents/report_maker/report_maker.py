@@ -1,6 +1,5 @@
 import json
 import os
-from datetime import date
 from pydantic import BaseModel, Field
 from typing import Dict, Any
 
@@ -29,12 +28,9 @@ class ReportInfo(BaseModel):
             reference = Reference(title=ref_data["title"], url=ref_data["url"])
             references.append(reference)
 
-        today = date.today()
-        formatted_date = today.strftime("%Y-%m-%d")
-
         # クラスメソッドからインスタンスを作成
         return cls(
-            title=f"{formatted_date} {json_data['title']}",
+            title=json_data["title"],
             abstract=json_data["abstract"],
             done_tasks=json_data["done_tasks"],
             problems=json_data["problems"],
@@ -52,16 +48,12 @@ class ReportInfo(BaseModel):
         template_path = os.path.join(os.path.dirname(__file__), "report_template.md")
         with open(template_path, "r", encoding="utf-8") as f:
             report_template = f.read()
-
-        chart_image_path = time_table_list.generate_pie_chart_path() # Generate the chart
-
         return report_template.format(
             abstract=self.abstract,
             done_tasks=self.done_tasks_to_str(),
             problems=self.problems_to_str(),
             feedback=self.feedback,
             task_duration=time_table_list.total_duration_by_type(),
-            chart_image_path=chart_image_path  # Pass the chart path to the template
         )
 
 
@@ -90,10 +82,6 @@ class ReportMaker(BaseVertexAI):
         - 作業内容に対する総評を記載してください。
         - よかった点、改善点などを具体的に記載してください。
         - 必ず次の作業に活かせるようなフィードバックをしてください。
-
-        !!出力フォーマット!!
-        - markdown形式で出力すること
-        - ただし、使用できる見出しレベルは####から
         """
         self.response_scheme = {
             "type": "OBJECT",

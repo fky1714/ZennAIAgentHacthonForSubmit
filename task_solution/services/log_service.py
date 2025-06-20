@@ -40,8 +40,6 @@ def make_report_by_log(uid) -> str:
     """
 
     log_text = firestore_service.download_log(uid)
-    if len(log_text) == 0:
-        raise Exception("作業ログが保存されていません。")
     log_text_short = log_text[:30].replace("\n", " ")
     logger.info(f"make_report_by_log: uid={uid} log_text={log_text_short}")
 

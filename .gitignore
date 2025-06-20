@@ -179,4 +179,3 @@ cython_debug/
 task_solution/credentials.json
 credentials.json
 dummy_private_key.pem
-task_solution/static/generated_charts

@@ -3,7 +3,6 @@ from pydantic import BaseModel, Field, validator
 from typing import Dict, Any
 
 from ..vertex_ai.base_vertex_ai import BaseVertexAI
-from .task_supporter import SupportInfo
 
 
 class NotifyInfo(BaseModel):
@@ -24,14 +23,14 @@ class NotifyInfo(BaseModel):
     @classmethod
     def from_json_data(cls, json_data: Dict[str, Any]) -> "NotifyInfo":
         return cls(
-            importance_level=int(json_data["importance_level"]),
+            importance_level=json_data["importance_level"],
             is_duplicate=json_data["is_duplicate"],
         )
 
     @property
     def should_notify(self) -> bool:
-        """通知すべきかどうかを判定（重複でない かつ 最重要）"""
-        return not self.is_duplicate and self.importance_level >= 5
+        """通知すべきかどうかを判定（重複でない かつ 重要度が3以上）"""
+        return not self.is_duplicate and self.importance_level >= 4
 
 
 class NotifyDesider(BaseVertexAI):
@@ -91,8 +90,8 @@ Check if the current notification message matches or closely resembles a previou
             "required": ["importance_level", "is_duplicate"],
         }
 
-    def is_need_notify(self, support_info: SupportInfo, log_context: str) -> bool:
-        query = f"## Target Support Message\n{support_info.message}\n\n## Logs\n{log_context}"
+    def is_need_notify(self, support_info: dict, log_context: str) -> bool:
+        query = f"## Target Support Message\n{support_info.get('message', '')}\n\n## Logs\n{log_context}"
 
         contents = [self.system_prompt, query]
 

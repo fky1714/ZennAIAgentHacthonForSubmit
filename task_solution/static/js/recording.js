@@ -333,11 +333,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     createProcedureBtn.textContent = '記録停止';
                     createProcedureBtn.className = 'stop-btn'; // Assuming similar styling
                 }
-                // Show cancel button
-                const cancelProcedureBtn = document.getElementById('cancelProcedureBtn');
-                if (cancelProcedureBtn) {
-                    cancelProcedureBtn.style.display = 'inline-block'; // Or 'block' depending on desired layout
-                }
                 const procedureResult = document.getElementById('procedureResult');
                 if (procedureResult) {
                     procedureResult.innerHTML = '録画中';
@@ -403,11 +398,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     createProcedureBtn.textContent = '記録開始';
                     createProcedureBtn.disabled = false;
                     createProcedureBtn.className = 'record-btn'; // Reset class on failure
-                }
-                // Hide cancel button on failure
-                const cancelProcedureBtn = document.getElementById('cancelProcedureBtn');
-                if (cancelProcedureBtn) {
-                    cancelProcedureBtn.style.display = 'none';
                 }
                 const procedureResult = document.getElementById('procedureResult');
                 if (procedureResult) {
@@ -511,11 +501,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                  createProcedureBtn.disabled = false;
                                  createProcedureBtn.className = 'record-btn'; // Reset class
                              }
-                             // Add code here to hide the cancel button
-                             const cancelProcedureBtn = document.getElementById('cancelProcedureBtn');
-                             if (cancelProcedureBtn) {
-                                 cancelProcedureBtn.style.display = 'none';
-                             }
                              // Other UI updates based on the overall outcome are typically handled
                              // by the click listener that awaits the stop() promise.
                              // The main UI update based on sendResult will be handled by the click listener
@@ -547,11 +532,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         createProcedureBtn.textContent = '記録開始';
                         createProcedureBtn.disabled = false;
                         createProcedureBtn.className = 'record-btn'; // Reset class
-                    }
-                    // Add code here to hide the cancel button
-                    const cancelProcedureBtn = document.getElementById('cancelProcedureBtn');
-                    if (cancelProcedureBtn) {
-                        cancelProcedureBtn.style.display = 'none';
                     }
                     if (procedureResult && procedureResult.innerHTML === 'ビデオ処理中...') { // Clear if it was set
                         procedureResult.classList.add('hidden');
@@ -624,67 +604,6 @@ document.addEventListener('DOMContentLoaded', () => {
             throw err; // Re-throw the error for the caller (e.g., onstop handler) to handle
         }
     }
-
-    cancelRecording() {
-        console.log('[ProcedureRecorder cancelRecording()] Canceling recording...');
-
-        if (!this.isRecording) {
-            console.log('[ProcedureRecorder cancelRecording()] Not recording.');
-            // Optionally, update UI to ensure it's in a consistent non-recording state
-            const procedureResult = document.getElementById('procedureResult');
-            if (procedureResult) {
-                procedureResult.innerHTML = '録画は開始されていません';
-                procedureResult.className = 'status info';
-                procedureResult.classList.remove('hidden');
-            }
-            return;
-        }
-
-        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-            console.log('[ProcedureRecorder cancelRecording()] Stopping MediaRecorder.');
-            // Detach the onstop handler to prevent video processing and upload
-            this.mediaRecorder.onstop = null;
-            this.mediaRecorder.stop();
-        }
-
-        if (this.mediaStream) {
-            console.log('[ProcedureRecorder cancelRecording()] Stopping MediaStream tracks.');
-            this.mediaStream.getTracks().forEach(track => track.stop());
-            this.mediaStream = null;
-        }
-
-        if (this.videoElement) {
-            console.log('[ProcedureRecorder cancelRecording()] Cleaning up VideoElement.');
-            this.videoElement.srcObject = null;
-            // Optionally remove the video element from DOM if it was added
-            this.videoElement = null;
-        }
-
-        this.isRecording = false;
-        this.recordedChunks = []; // Clear any recorded data
-
-        // Reset UI elements
-        const createProcedureBtn = document.getElementById('createProcedureBtn');
-        if (createProcedureBtn) {
-            createProcedureBtn.textContent = '記録開始';
-            createProcedureBtn.className = 'record-btn';
-            createProcedureBtn.disabled = false; // Ensure it's enabled
-        }
-
-        const cancelProcedureBtn = document.getElementById('cancelProcedureBtn');
-        if (cancelProcedureBtn) {
-            cancelProcedureBtn.style.display = 'none';
-        }
-
-        const procedureResult = document.getElementById('procedureResult');
-        if (procedureResult) {
-            procedureResult.innerHTML = '録画をキャンセルしました';
-            procedureResult.className = 'status warning'; // Or 'info' based on preference
-            procedureResult.classList.remove('hidden');
-        }
-
-        console.log('[ProcedureRecorder cancelRecording()] Recording canceled.');
-    }
     }
 
     // Separate instance for procedure capturing
@@ -697,29 +616,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const procedureResult = document.getElementById('procedureResult');
-
-    // Event listener for the cancel button
-    const cancelProcedureBtn = document.getElementById('cancelProcedureBtn');
-    if (cancelProcedureBtn && procedureRecorder) { // Ensure procedureRecorder is also available
-        cancelProcedureBtn.addEventListener('click', async () => {
-            console.log('[DEBUG] Cancel button clicked.');
-            // Disable the cancel button immediately to prevent multiple clicks
-            cancelProcedureBtn.disabled = true;
-            try {
-                await procedureRecorder.cancelRecording();
-                // cancelRecording() itself handles UI updates including re-enabling createProcedureBtn
-                // and hiding cancelProcedureBtn.
-            } catch (error) {
-                console.error('[CancelBtnListener] Error during cancelRecording:', error);
-                // If cancelRecording failed critically, the button might still be visible.
-                // Re-enable it to allow another attempt or manual UI correction.
-                if (cancelProcedureBtn.style.display !== 'none') {
-                    cancelProcedureBtn.disabled = false;
-                }
-            }
-            // No finally block needed to re-enable if hidden, as cancelRecording should handle state.
-        });
-    }
 
     if (createProcedureBtn && procedureRecorder) {
         createProcedureBtn.addEventListener('click', async () => {

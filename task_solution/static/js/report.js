@@ -54,7 +54,7 @@
             const ul = document.createElement("ul");
             reports.forEach(report => {
                 const li = document.createElement("li");
-                li.textContent = `${report.title ? report.title.substring(0, 40) : ""}`;
+                li.textContent = `${report.title ? report.title.substring(0, 20) : ""}`;
                 li.style.cursor = "pointer";
                 li.onclick = () => showReportDetail(report.id);
                 ul.appendChild(li);
@@ -170,7 +170,7 @@
         } else {
             contentElem.style.display = "none";
             contentView.style.display = "";
-            contentView.innerHTML = marked.parse(currentReport.content || "", { breaks: true });
+            contentView.innerHTML = marked.parse(currentReport.content || "");
         }
     }
 
