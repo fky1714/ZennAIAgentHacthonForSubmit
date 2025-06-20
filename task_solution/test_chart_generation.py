@@ -24,12 +24,13 @@ def run_test():
 
     # 1. Create Sample TimeTable data
     sample_time_entries = [
-        TimeTable(task_type="開発", start_time="09:00", end_time="11:00"), # 2 hours
-        TimeTable(task_type="ミーティング", start_time="11:00", end_time="11:30"), # 0.5 hours
-        TimeTable(task_type="休憩", start_time="12:00", end_time="13:00"), # 1 hour (excluded)
-        TimeTable(task_type="調査", start_time="14:00", end_time="15:30"), # 1.5 hours
-        TimeTable(task_type="開発", start_time="15:30", end_time="17:00"), # 1.5 hours
+        TimeTable(task_type="開発作業", start_time="09:00", end_time="11:00"), # "Development Work"
+        TimeTable(task_type="顧客ミーティング", start_time="11:00", end_time="11:30"), # "Client Meeting"
+        TimeTable(task_type="休憩時間", start_time="12:00", end_time="13:00"), # "Rest Time" (should be excluded from chart)
+        TimeTable(task_type="市場調査", start_time="14:00", end_time="15:30"), # "Market Research"
+        TimeTable(task_type="開発作業", start_time="15:30", end_time="17:00"), # "Development Work"
     ]
+    # Expected chart data (with Japanese labels): 開発作業, 顧客ミーティング, 市場調査
     time_table_list = TimeTableList(time_table=sample_time_entries)
 
     # 2. Create dummy ReportInfo

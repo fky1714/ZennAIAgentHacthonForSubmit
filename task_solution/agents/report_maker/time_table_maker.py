@@ -7,10 +7,10 @@ from ..vertex_ai.base_vertex_ai import BaseVertexAI
 import matplotlib
 matplotlib.use('Agg') # Ensure matplotlib doesn't try to use a GUI backend
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 import os
+import urllib.request
 import uuid
-# from collections import defaultdict # Already imported
-# from datetime import timedelta # Already imported
 
 
 class TimeTable(BaseModel):
@@ -81,40 +81,89 @@ class TimeTableList(BaseModel):
     def generate_pie_chart_path(self) -> str:
         type_durations = defaultdict(timedelta)
         for t in self.time_table:
-            # Exclude '休憩' (Rest) and '離席' (Away) from the chart
-            if t.task_type != "休憩" and t.task_type != "離席":
+            if t.task_type != "休憩" and t.task_type != "離席": # Exclude specific types
                 type_durations[t.task_type] += t.duration
 
         if not type_durations:
-            return "" # Return empty if no data to plot
+            return ""
 
         labels = type_durations.keys()
-        # Convert timedelta objects to total minutes for plotting
         sizes = [td.total_seconds() / 60 for td in type_durations.values()]
 
-        # Create the directory for charts if it doesn't exist
         charts_dir = os.path.join(os.path.dirname(__file__), "..", "..", "static", "generated_charts")
         os.makedirs(charts_dir, exist_ok=True)
 
-        # Generate unique filename
         filename = f"pie_chart_{uuid.uuid4().hex}.png"
         filepath = os.path.join(charts_dir, filename)
 
+        font_name_to_use = None
+        # URL from subtask description, with _COLON_ replaced
+        font_download_url = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansjp/NotoSansJP-Regular.ttf"
+        font_filename = "NotoSansJP-Regular.ttf"
+        # Correctly determine temp_font_dir relative to the task_solution directory
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # This should be task_solution
+        temp_font_dir = os.path.join(base_dir, "temp_fonts")
+        local_font_path = os.path.join(temp_font_dir, font_filename)
+
+        os.makedirs(temp_font_dir, exist_ok=True)
+        print(f"Temp font directory: {temp_font_dir}")
+
+        if not os.path.exists(local_font_path):
+            print(f"Font {font_filename} not found locally. Attempting to download from {font_download_url}...")
+            try:
+                actual_url = font_download_url # This variable already has the correct URL.
+
+                # Create a request object with a User-Agent header
+                req = urllib.request.Request(
+                    actual_url,
+                    data=None,
+                    headers={
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    }
+                )
+
+                with urllib.request.urlopen(req) as response, open(local_font_path, 'wb') as out_file:
+                    if response.status == 200:
+                        data = response.read() # Read data from response
+                        out_file.write(data)   # Write to file
+                        print(f"Font downloaded successfully to {local_font_path}")
+                    else:
+                        print(f"Error during download: Server responded with status {response.status}")
+                        local_font_path = None # Indicate download failure
+
+            except Exception as e:
+                print(f"Error downloading font: {e}")
+                local_font_path = None
+        else:
+            print(f"Font {font_filename} found locally at {local_font_path}")
+
+        if local_font_path and os.path.exists(local_font_path):
+            try:
+                font_prop = fm.FontProperties(fname=local_font_path)
+                font_name_to_use = font_prop.get_name()
+
+                plt.rcParams['font.family'] = 'sans-serif'
+                plt.rcParams['font.sans-serif'] = [font_name_to_use]
+                print(f"Attempting to use downloaded font: {font_name_to_use} from {local_font_path}")
+            except Exception as e:
+                print(f"Error setting downloaded font {local_font_path}: {e}")
+                font_name_to_use = None
+
+        if not font_name_to_use:
+            print("Using default font as downloaded font is not available or failed to set.")
+
         fig, ax = plt.subplots()
         ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
-        ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
-        plt.title("作業時間割合") # Title: "Work Time Percentage"
+        ax.axis('equal')
+        plt.title("作業時間割合") # "Work Time Percentage"
 
         try:
             plt.savefig(filepath)
-            plt.close(fig) # Close the figure to free memory
+            plt.close(fig)
         except Exception as e:
-            # Handle potential errors during saving (e.g. permissions)
-            # For now, we'll print an error and return an empty path
             print(f"Error saving pie chart: {e}")
             return ""
 
-        # Return the web-accessible path
         return f"/static/generated_charts/{filename}"
 
 
