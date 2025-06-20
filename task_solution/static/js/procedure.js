@@ -173,7 +173,7 @@
     // 保存
     async function saveProcedure() {
         if (!window.currentProcedure) return;
-        const res = await fetch(`/api/procedures/${window.currentProcedure.task_name}`, {
+        const res = await fetch(`/api/procedures/${encodeURIComponent(window.currentProcedure.task_name)}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
