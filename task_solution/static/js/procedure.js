@@ -83,6 +83,7 @@
             return;
         }
         window.currentProcedure = data.procedure;
+        console.log("Loaded procedure data:", JSON.stringify(window.currentProcedure)); // <-- ADD THIS LINE
         console.log("[showProcedureDetail] Set window.currentProcedure to:", window.currentProcedure);
         window.originalProcedure = { ...window.currentProcedure };
         window.procedureIsEditing = false;
@@ -170,28 +171,70 @@
         }
     }
 
-    // 保存
-    async function saveProcedure() {
-        if (!window.currentProcedure) return;
-        const res = await fetch(`/api/procedures/${encodeURIComponent(window.currentProcedure.task_name)}`, {
+async function saveProcedure() {
+    if (!window.currentProcedure) {
+        console.error("Save aborted: currentProcedure is not set.");
+        alert("エラー: 対象の手順書が選択されていません。"); // Error: Target procedure is not selected.
+        return;
+    }
+
+    const taskNameForSave = window.currentProcedure.task_name;
+    const contentForSave = window.currentProcedure.content;
+
+    if (!taskNameForSave || taskNameForSave.trim() === "") {
+        alert("手順名が空のため保存できません。タイトルを入力してください。"); // Procedure name is empty, cannot save. Please enter a title.
+        return;
+    }
+
+    const saveBtn = document.getElementById("saveProcedureBtn");
+    if (saveBtn) saveBtn.disabled = true;
+
+    try {
+        const res = await fetch(`/api/procedures/${encodeURIComponent(taskNameForSave)}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                title: window.currentProcedure.task_name,
-                content: window.currentProcedure.content
+                content: contentForSave
             })
         });
+
+        if (!res.ok) {
+            let errorMsg = `サーバーエラー: ${res.status}`;
+            try {
+                const errData = await res.json();
+                errorMsg = `${errorMsg} - ${errData.message || JSON.stringify(errData)}`;
+            } catch (e) {
+                // If response is not JSON, try to get text
+                try {
+                    const errText = await res.text();
+                    errorMsg = `${errorMsg} - ${errText}`;
+                } catch (textErr) {
+                    // If reading text also fails, just use the status
+                     errorMsg = `サーバーエラー: ${res.status}. 応答の読み取りに失敗しました。`;
+                }
+            }
+            throw new Error(errorMsg);
+        }
+
         const data = await res.json();
+
         if (data.status === "success") {
             alert("保存しました");
             window.procedureIsEditing = false;
-            window.currentProcedure = { ...window.currentProcedure, ...data.content };
+            window.currentProcedure = data.content;
             window.originalProcedure = { ...window.currentProcedure };
+            window.procedureIsDirty = false;
             renderProcedureDetail();
         } else {
-            alert("保存に失敗しました");
+            alert(`保存に失敗しました: ${data.message || '不明なサーバー応答'}`);
+            if (saveBtn) saveBtn.disabled = !window.procedureIsDirty; // Re-enable based on dirty state
         }
+    } catch (error) {
+        console.error("保存処理中にエラーが発生しました:", error);
+        alert(`保存中にエラーが発生しました: ${error.message}`);
+        if (saveBtn) saveBtn.disabled = !window.procedureIsDirty; // Re-enable based on dirty state
     }
+}
 
     // 削除
     async function deleteProcedure() {
