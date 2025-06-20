@@ -104,25 +104,44 @@ class FirestoreService:
             return data
         return None
 
-    def create_report(self, uid: str, title: str, content: str):
+    def create_report(self, uid: str, title: str, content: str, log_date: str = None):
         """レポート新規作成"""
-        logger.info(f"create_report: uid={uid} title={title}")
+        if log_date:
+            logger.info(f"create_report: uid={uid} title={title} log_date={log_date}")
+        else:
+            logger.info(f"create_report: uid={uid} title={title}")
 
         users_doc = self.db.collection("users").document(uid)
         reports_ref = users_doc.collection("reports")
         new_doc = reports_ref.document()
         now = datetime.now()
-        new_doc.set(
-            {
-                "title": title,
-                "content": content,
-                "created_at": now,
-                "updated_at": now,
-            }
-        )
+        report_data = {
+            "title": title,
+            "content": content,
+            "created_at": now,
+            "updated_at": now,
+        }
+        if log_date:
+            report_data["log_date"] = log_date
+        new_doc.set(report_data)
         data = new_doc.get().to_dict()
         data["id"] = new_doc.id
         return data
+
+    def get_report_by_log_date(self, uid: str, log_date: str) -> dict | None:
+        '''Checks if a report exists for a specific log_date.'''
+        logger.info(f"get_report_by_log_date: uid={uid}, log_date={log_date}")
+        reports_ref = self.db.collection("users").document(uid).collection("reports")
+        query = reports_ref.where("log_date", "==", log_date).limit(1)
+        docs = query.stream()
+        for doc in docs: # Should be at most one due to limit(1)
+            if doc.exists:
+                report_data = doc.to_dict()
+                report_data["id"] = doc.id
+                logger.info(f"Found report for log_date {log_date}: id={doc.id}")
+                return report_data
+        logger.info(f"No report found for log_date {log_date}")
+        return None
 
     def update_report(self, uid: str, report_id: str, title: str, content: str):
         """レポート更新"""
@@ -245,6 +264,29 @@ class FirestoreService:
         )
         doc_ref.delete()
         return True
+
+    def get_last_auto_report_check_date(self, uid: str) -> str | None:
+        '''Retrieves the last date the automatic report check was performed for a user.'''
+        logger.info(f"get_last_auto_report_check_date: uid={uid}")
+        try:
+            doc_ref = self.db.collection("users").document(uid).collection("metadata").document("auto_report_tracker")
+            doc = doc_ref.get()
+            if doc.exists:
+                return doc.to_dict().get("last_check_date")
+            return None
+        except Exception as e:
+            logger.error(f"Error getting last_auto_report_check_date for uid={uid}: {str(e)}")
+            return None # Or re-raise if critical
+
+    def update_last_auto_report_check_date(self, uid: str, date_str: str):
+        '''Updates the last date the automatic report check was performed.'''
+        logger.info(f"update_last_auto_report_check_date: uid={uid}, date_str={date_str}")
+        try:
+            doc_ref = self.db.collection("users").document(uid).collection("metadata").document("auto_report_tracker")
+            doc_ref.set({"last_check_date": date_str, "updated_at": datetime.now()}, merge=True)
+        except Exception as e:
+            logger.error(f"Error updating last_auto_report_check_date for uid={uid}: {str(e)}")
+            # Or re-raise if critical
 
 
 firestore_service = FirestoreService()

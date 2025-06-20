@@ -2,6 +2,7 @@ import os
 import traceback # Ensure this import is present at the top of app.py
 from dotenv import load_dotenv
 import datetime
+from datetime import timedelta # Ensure timedelta is imported
 from google.cloud import storage
 from flask import Flask, request, jsonify, session
 import json
@@ -21,6 +22,74 @@ from google.auth.transport import requests as grequests
 # Loggerクラスのインポート
 from utils.logger import Logger
 from services.firestore_service import firestore_service
+
+
+def check_and_generate_missing_reports(uid: str):
+    logger.info(f"Starting check_and_generate_missing_reports for uid={uid}")
+    try:
+        today = datetime.datetime.now().date()
+
+        # Get the most recent report to find the last log_date processed
+        latest_reports = firestore_service.get_reports(uid=uid, page=1, page_size=1)
+
+        last_processed_log_date = None
+        if latest_reports and latest_reports[0].get("log_date"):
+            try:
+                last_processed_log_date = datetime.datetime.strptime(latest_reports[0]["log_date"], "%Y-%m-%d").date()
+                logger.info(f"Last processed log_date for uid={uid} is {last_processed_log_date}")
+            except ValueError:
+                logger.warning(f"Could not parse log_date '{latest_reports[0]['log_date']}' for uid={uid}. Proceeding as if no last processed date.")
+        else:
+            logger.info(f"No recent reports with log_date found for uid={uid}. Will check from yesterday.")
+
+        # Determine the start date for checking
+        # If no last_processed_log_date, start from yesterday. Otherwise, start from the day after last_processed_log_date.
+        current_check_date = last_processed_log_date + timedelta(days=1) if last_processed_log_date else today - timedelta(days=1)
+
+        logger.info(f"Checking for missing reports for uid={uid} from {current_check_date} up to {today - timedelta(days=1)}")
+
+        # Loop from start_date up to (but not including) today
+        while current_check_date < today:
+            date_str_to_check = current_check_date.strftime("%Y-%m-%d")
+            logger.info(f"Processing date {date_str_to_check} for uid={uid}")
+
+            try:
+                # Check if a report for this log_date already exists
+                existing_report = firestore_service.get_report_by_log_date(uid, date_str_to_check)
+                if existing_report:
+                    logger.info(f"Report for log_date {date_str_to_check} already exists for uid={uid}. Skipping.")
+                    current_check_date += timedelta(days=1)
+                    continue
+
+                # If no report, check if logs exist for that day
+                logger.info(f"No report found for {date_str_to_check}. Checking for logs for uid={uid}.")
+                logs = firestore_service.download_log(uid, date=date_str_to_check)
+                if not logs:
+                    logger.info(f"No logs found for uid={uid} on {date_str_to_check}. Skipping report generation.")
+                    current_check_date += timedelta(days=1)
+                    continue
+
+                logger.info(f"Logs found for uid={uid} on {date_str_to_check}. Attempting to generate report.")
+                # If logs exist, generate the report
+                report_content = make_report_by_log(uid, date_str_to_check)
+                if report_content:
+                    logger.info(f"Successfully generated report for uid={uid} for log_date {date_str_to_check}.")
+                else:
+                    # This case (logs exist but report_content is empty) might indicate an issue in make_report_by_log
+                    # or it handled an edge case like "no tasks found in logs".
+                    logger.info(f"make_report_by_log returned no content for uid={uid} for log_date {date_str_to_check}, though logs were present.")
+
+            except Exception as e_inner:
+                logger.error(f"Error processing date {date_str_to_check} for uid={uid}: {str(e_inner)}")
+                # Optionally, log traceback: logger.error(traceback.format_exc())
+
+            current_check_date += timedelta(days=1)
+
+        logger.info(f"Finished check_and_generate_missing_reports for uid={uid}")
+
+    except Exception as e_outer:
+        logger.error(f"Outer error in check_and_generate_missing_reports for uid={uid}: {str(e_outer)}")
+        # Optionally, log traceback: logger.error(traceback.format_exc())
 
 app = Flask(__name__)
 app.secret_key = "ThisIsHelloween"
@@ -189,9 +258,37 @@ def create_procedure():
 def check_login():
     uid = session.get("google_uid")
     email = session.get("google_email")
+
+    if uid: # User is logged in or has an effective_uid via session
+        try:
+            today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+            last_check_date = firestore_service.get_last_auto_report_check_date(uid)
+
+            if last_check_date != today_str:
+                logger.info(f"Running automatic report check for uid={uid} for date={today_str}. Last check was on {last_check_date}.")
+                # Call the function (assuming it's defined in app.py or imported)
+                check_and_generate_missing_reports(uid)
+                firestore_service.update_last_auto_report_check_date(uid, today_str)
+                logger.info(f"Updated last_auto_report_check_date for uid={uid} to {today_str}.")
+            else:
+                logger.info(f"Automatic report check already performed today ({today_str}) for uid={uid}.")
+
+        except Exception as e_auto_report:
+            logger.error(f"Error during automatic report check for uid={uid}: {str(e_auto_report)}")
+            # Do not let this break the /check_login functionality
+
+    # Original /check_login response logic
     if uid and email:
         return jsonify({"status": "logged_in", "uid": uid, "email": email})
     else:
+        # If not google_uid, try to get effective_uid to run the check for session-based users too
+        # This part depends on whether non-Google logged-in users should also have this feature.
+        # For now, let's stick to the original logic that it runs if 'uid' (which is google_uid here) is present.
+        # If effective_uid should be used, the logic for getting uid at the start of this function needs adjustment.
+        # The current problem description implies "user" in a general sense, but Firestore structure is users/{uid}/...
+        # So it should align with the UID used for storing logs and reports.
+        # `get_effective_uid()` could be called here if we want to run it for non-Google-logged-in users too.
+        # For now, the current structure with `uid = session.get("google_uid")` is fine.
         return jsonify({"status": "not_logged_in"})
 
 
