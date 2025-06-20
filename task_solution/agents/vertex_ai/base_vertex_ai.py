@@ -26,8 +26,6 @@ class BaseVertexAI:
         )
 
     def invoke(self, contents):
-        output_contents = " ".join(contents)[:500]
-        self.logger.info(f"contents > {output_contents}")
         response = self.model.generate_content(
             contents,
             generation_config=self.generation_config,
