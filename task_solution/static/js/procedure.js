@@ -83,6 +83,9 @@
             return;
         }
         window.currentProcedure = data.procedure;
+        window.originalProcedureId = data.procedure.task_name; // Store the original ID
+        console.log("Loaded procedure data:", JSON.stringify(window.currentProcedure));
+        console.log("Original Procedure ID for save:", window.originalProcedureId); // Log the original ID
         console.log("[showProcedureDetail] Set window.currentProcedure to:", window.currentProcedure);
         window.originalProcedure = { ...window.currentProcedure };
         window.procedureIsEditing = false;
@@ -170,28 +173,85 @@
         }
     }
 
-    // 保存
-    async function saveProcedure() {
-        if (!window.currentProcedure) return;
-        const res = await fetch(`/api/procedures/${window.currentProcedure.task_name}`, {
+async function saveProcedure() {
+    if (!window.currentProcedure) {
+        console.error("Save aborted: currentProcedure is not set.");
+        alert("エラー: 対象の手順書が選択されていません。"); // Error: Target procedure is not selected.
+        return;
+    }
+
+    // const taskNameForSave = window.currentProcedure.task_name; // Use originalProcedureId for URL
+    const idForURL = window.originalProcedureId;
+    const contentForSave = window.currentProcedure.content; // Content can be from the edited currentProcedure
+
+    // Check for idForURL before proceeding
+    if (!idForURL || idForURL.trim() === "") {
+        alert("エラー: 元の手順書IDが不明です。ページを再読み込みしてください。");
+        console.error("Save aborted: originalProcedureId is not set.");
+        const saveBtn = document.getElementById("saveProcedureBtn");
+        if (saveBtn) saveBtn.disabled = false; // Re-enable button
+        return;
+    }
+
+    // The UI task_name (title) can still be empty, but we use originalProcedureId for the PUT request URL.
+    // The content of currentProcedure.task_name (which is the title in the UI) will be part of the 'content' body if needed by backend,
+    // but for now, the body only sends 'content'. If the title needs to be updated, the backend API and this payload need adjustment.
+    // For this subtask, we are only changing the URL to use the original ID.
+    // We can still check if the *displayed* title is empty, if that's a product requirement.
+    if (!window.currentProcedure.task_name || window.currentProcedure.task_name.trim() === "") {
+        alert("手順名が空のため保存できません。タイトルを入力してください。"); // Procedure name is empty, cannot save. Please enter a title.
+        return;
+    }
+
+    const saveBtn = document.getElementById("saveProcedureBtn");
+    if (saveBtn) saveBtn.disabled = true;
+
+    try {
+        const res = await fetch(`/api/procedures/${encodeURIComponent(idForURL)}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                title: window.currentProcedure.task_name,
-                content: window.currentProcedure.content
+                content: contentForSave
             })
         });
+
+        if (!res.ok) {
+            let errorMsg = `サーバーエラー: ${res.status}`;
+            try {
+                const errData = await res.json();
+                errorMsg = `${errorMsg} - ${errData.message || JSON.stringify(errData)}`;
+            } catch (e) {
+                // If response is not JSON, try to get text
+                try {
+                    const errText = await res.text();
+                    errorMsg = `${errorMsg} - ${errText}`;
+                } catch (textErr) {
+                    // If reading text also fails, just use the status
+                     errorMsg = `サーバーエラー: ${res.status}. 応答の読み取りに失敗しました。`;
+                }
+            }
+            throw new Error(errorMsg);
+        }
+
         const data = await res.json();
+
         if (data.status === "success") {
             alert("保存しました");
             window.procedureIsEditing = false;
-            window.currentProcedure = { ...window.currentProcedure, ...data.content };
+            window.currentProcedure = data.content;
             window.originalProcedure = { ...window.currentProcedure };
+            window.procedureIsDirty = false;
             renderProcedureDetail();
         } else {
-            alert("保存に失敗しました");
+            alert(`保存に失敗しました: ${data.message || '不明なサーバー応答'}`);
+            if (saveBtn) saveBtn.disabled = !window.procedureIsDirty; // Re-enable based on dirty state
         }
+    } catch (error) {
+        console.error("保存処理中にエラーが発生しました:", error);
+        alert(`保存中にエラーが発生しました: ${error.message}`);
+        if (saveBtn) saveBtn.disabled = !window.procedureIsDirty; // Re-enable based on dirty state
     }
+}
 
     // 削除
     async function deleteProcedure() {

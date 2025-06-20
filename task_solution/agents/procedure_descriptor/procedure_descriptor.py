@@ -45,7 +45,7 @@ class ProcedureDescriptor(BaseVertexAI):
             You should analyze the records and extract detail information about what the user is doing.
 
             # important points
-            - Ignore any logs related to starting/stopping recording in the TaskSolution WebApp, as these are automatically included in logs but not relevant to the procedure
+            - Ignore any logs related to starting/stopping recording in the Sofia WebApp, as these are automatically included in logs but not relevant to the procedure
             - The procedure document should focus on the purpose indicated by the task_name, extracting only the steps necessary to execute that task from the logs
             - Ignore any logs that are not needed for the procedure
             - Generalize the procedure steps

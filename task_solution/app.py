@@ -1,4 +1,5 @@
 import os
+import traceback # Ensure this import is present at the top of app.py
 from dotenv import load_dotenv
 import datetime
 from google.cloud import storage
@@ -259,19 +260,34 @@ def api_get_procedure(procedure_id):
 
 @app.route("/api/procedures/<procedure_id>", methods=["PUT"])
 def api_update_procedure(procedure_id):
-    effective_uid = get_effective_uid()  # 実効UIDを取得
-    wrapped_put_msg = (
-        f"PUT /api/procedures/<id> called. effective_uid={effective_uid}, "
-        f"procedure_id={procedure_id}"
+    effective_uid = get_effective_uid()
+    logger.info(
+        f"PUT /api/procedures/{procedure_id} called. effective_uid={effective_uid}"
     )
-    logger.info(wrapped_put_msg)
-    data = request.json
-    # Remove unused local variable 'title'
-    data.get("title", "")
-    content = data.get("content", "")
-    # Firestoreの手順書はtask_name=procedure_idで管理されている
-    updated = firestore_service.update_procedure(effective_uid, procedure_id, content)
-    return jsonify({"status": "success", "content": updated})
+    try:
+        data = request.json
+        content = data.get("content", "")
+
+        # Firestoreの手順書はtask_name=procedure_idで管理されている
+        updated_procedure = firestore_service.update_procedure(effective_uid, procedure_id, content)
+
+        if updated_procedure is None: # Or some other way to check if update failed in service layer
+            logger.warning(f"Update procedure returned None for procedure_id: {procedure_id}, user: {effective_uid}")
+            # Consider if firestore_service.update_procedure can return None for a "not found" or "failed update"
+            # For now, let's assume it raises an exception on failure or returns the updated doc.
+            # If it can return None for a failure that isn't an exception, that needs specific handling.
+
+        logger.info(f"Procedure {procedure_id} updated successfully for user {effective_uid}.")
+        return jsonify({"status": "success", "content": updated_procedure})
+
+    except Exception as e:
+        logger.error(f"Error in api_update_procedure for procedure_id {procedure_id}:")
+        logger.error(traceback.format_exc())
+        return jsonify({
+            "status": "error",
+            "message": "An unexpected error occurred on the server while updating the procedure.",
+            "detail": str(e)
+        }), 500
 
 
 @app.route("/api/procedures/<procedure_id>", methods=["DELETE"])
