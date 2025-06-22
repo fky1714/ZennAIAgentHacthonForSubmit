@@ -30,8 +30,8 @@ logger = Logger(name="app").get_logger()
 # Load environment variables from .env file
 load_dotenv()
 
-# Flask app instance and secret key will be defined in if __name__ == "__main__": block
-app = None
+app = Flask(__name__) #  Moved app initialization to top level
+app.secret_key = "ThisIsHelloween"
 
 # Set Google Cloud credentials
 env_gac = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
@@ -576,73 +576,10 @@ def chat():
         return jsonify({"status": "error", "message": "チャット処理中にエラーが発生しました。"}), 500
 
 if __name__ == "__main__":
-    app_instance = Flask(__name__) # appインスタンスをここで作成
-    app_instance.secret_key = "ThisIsHelloween" # secret keyもここで設定
-
-    # Make original `app` variable (now None at global scope) point to this instance
-    # This is a bit of a hack to make global @app.route decorators work.
-    # A cleaner way would be to pass `app_instance` to a registration function.
-    globals()['app'] = app_instance
-
-    # Now that globals()['app'] is set, the original route decorators should work
-    # against app_instance. We don't need to redefine routes here IF this hack works.
-    # However, get_effective_uid and other functions relying on `session`
-    # will need the request context from `app_instance`.
-
-    # For testing, explicitly call the original route registration if it was conditional
-    # or ensure they are registered.
-    # If routes are defined at the top level using the global `app` variable,
-    # they should now be associated with `app_instance`.
-
-    # Let's ensure the test and chat routes are explicitly using the new instance for clarity
-    # (though the globals()['app'] hack *should* make the original decorators work)
-
-    # It's better to define a function to register routes and call it here
-    def register_all_routes(current_app):
-        # Temporarily redefine original functions here for simplicity for this test
-        # In a real scenario, these would be your actual imported or defined view functions.
-
-        # Re-register all view functions with the new app instance.
-        # This requires access to all original view functions.
-        # For simplicity, I'll assume they are accessible in the global scope.
-        # This is a conceptual fix. The actual implementation might need adjustments
-        # based on how view functions are defined and imported.
-
-        # Example of re-registering existing globally defined view functions:
-        # Accessing functions by their original names.
-        # Note: This assumes that the @app.route decorators on the original functions
-        # will now correctly use the `app_instance` due to the `globals()['app'] = app_instance` hack.
-        # If that hack is not reliable, explicit re-registration like this is needed:
-
-        current_app.add_url_rule("/", view_func=index, methods=["GET"])
-        current_app.add_url_rule("/test_route", view_func=test_route, methods=["GET"])
-        current_app.add_url_rule("/chat", view_func=chat, methods=["POST"])
-        current_app.add_url_rule("/google_login", view_func=google_login, methods=["POST"])
-        current_app.add_url_rule("/record_frame", view_func=record_frame, methods=["POST"])
-        current_app.add_url_rule("/make_report", view_func=make_report, methods=["POST"])
-        current_app.add_url_rule("/create_procedure", view_func=create_procedure, methods=["POST"])
-        current_app.add_url_rule("/check_login", view_func=check_login, methods=["GET"])
-        current_app.add_url_rule("/api/procedures", view_func=api_get_procedures, methods=["GET"])
-        current_app.add_url_rule("/api/procedures/<procedure_id>", view_func=api_get_procedure, methods=["GET"])
-        current_app.add_url_rule("/api/procedures/<procedure_id>", view_func=api_update_procedure, methods=["PUT"])
-        current_app.add_url_rule("/api/procedures/<procedure_id>", view_func=api_delete_procedure, methods=["DELETE"])
-        current_app.add_url_rule("/api/reports", view_func=api_get_reports, methods=["GET"])
-        current_app.add_url_rule("/api/reports/<report_id>", view_func=api_get_report, methods=["GET"])
-        current_app.add_url_rule("/api/reports", view_func=api_create_report, methods=["POST"])
-        current_app.add_url_rule("/api/reports/<report_id>", view_func=api_update_report, methods=["PUT"])
-        current_app.add_url_rule("/api/reports/<report_id>", view_func=api_delete_report, methods=["DELETE"])
-        current_app.add_url_rule("/api/notify_support", view_func=notify_support, methods=["POST"])
-        current_app.add_url_rule("/upload_video", view_func=upload_video, methods=["POST"])
-
-    register_all_routes(app_instance)
-
+    # app instance is now defined at the top level
     port = int(os.environ.get("PORT", 8080))
-    logger.info(f"Flaskアプリ起動 on port {port} (app instance created in main, routes re-registered)")
-    app_instance.run(host="0.0.0.0", port=port, debug=True)
-
-if __name__ == "__main__":
-    app = Flask(__name__) # appインスタンスをここで作成
-    app.secret_key = "ThisIsHelloween" # secret keyもここで設定
+    logger.info(f"Flaskアプリ起動 on port {port}")
+    app.run(host="0.0.0.0", port=port, debug=True)
 
     # Register all routes within this block if app is defined here
     # This is a simplified example; you'd need to move ALL @app.route decorators
