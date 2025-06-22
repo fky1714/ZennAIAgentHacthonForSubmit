@@ -54,7 +54,7 @@
             const ul = document.createElement("ul");
             reports.forEach(report => {
                 const li = document.createElement("li");
-                li.textContent = `${report.title ? report.title.substring(0, 20) : ""}`;
+                li.textContent = `${report.title ? report.title.substring(0, 40) : ""}`;
                 li.style.cursor = "pointer";
                 li.onclick = () => showReportDetail(report.id);
                 ul.appendChild(li);
