@@ -10,7 +10,7 @@ matplotlib.use("Agg")  # Ensure matplotlib doesn't try to use a GUI backend
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 import os
-import urllib.request
+# import urllib.request # フォントダウンロード処理を削除したので不要
 import uuid
 
 
@@ -66,32 +66,47 @@ class TimeTableList(BaseModel):
         all_task_dt = timedelta()
         for t in self.time_table:
             type_durations[t.task_type] += t.duration
-            if t.task_type != "休憩" and t.task_type != "離席":
-                all_task_dt += t.duration
+            # 「離席」は総作業時間に含めないが、「休憩」は場合による（ここでは集計上は含める）
+            if t.task_type != "離席":
+                # グラフ表示対象としての作業時間とは別に、表示用の総作業時間には休憩も含めて良いか検討
+                # ここでは元々のロジックを踏襲し、「休憩」と「離席」を除いたものを「総作業時間」とする
+                if t.task_type != "休憩":
+                    all_task_dt += t.duration
         whole_task_duration = (
             f"**総作業時間**: {self._format_timedelta_jp(all_task_dt)}\n"
         )
-        task_durations = "\n".join(
-            [
-                f"    {task_type}: {self._format_timedelta_jp(duration)}"
-                for task_type, duration in type_durations.items()
-            ]
-        )
+        # 「離席」は作業時間の内訳に表示しない
+        task_durations_list = []
+        for task_type, duration in type_durations.items():
+            if task_type != "離席":
+                task_durations_list.append(f"    {task_type}: {self._format_timedelta_jp(duration)}")
+
+        task_durations = "\n".join(task_durations_list)
         return whole_task_duration + task_durations
 
-    def generate_pie_chart_path(self) -> str:
+    def get_task_types_for_chart(self) -> dict[str, timedelta]:
+        """グラフ表示対象となる作業種別とその合計時間を取得する"""
         type_durations = defaultdict(timedelta)
         for t in self.time_table:
-            if (
-                t.task_type != "休憩" and t.task_type != "離席"
-            ):  # Exclude specific types
+            if t.task_type != "離席":  # 「離席」のみ除外
                 type_durations[t.task_type] += t.duration
+        return dict(type_durations)
 
-        if not type_durations:
+    def generate_pie_chart_path(self) -> str:
+        try:
+            # フォントキャッシュを強制的に再構築
+            fm._load_fontmanager(try_read_cache=False)
+            print("Successfully reloaded font manager.")
+        except Exception as e:
+            print(f"Error reloading font manager: {e}")
+
+        type_durations_for_chart = self.get_task_types_for_chart()
+
+        if not type_durations_for_chart:
             return ""
 
-        labels = list(type_durations.keys())
-        sizes = [td.total_seconds() / 60 for td in type_durations.values()]
+        labels = list(type_durations_for_chart.keys())
+        sizes = [td.total_seconds() / 60 for td in type_durations_for_chart.values()]
 
         charts_dir = os.path.join(
             os.path.dirname(__file__), "..", "..", "static", "generated_charts"
@@ -101,163 +116,74 @@ class TimeTableList(BaseModel):
         filename = f"pie_chart_{uuid.uuid4().hex}.png"
         filepath = os.path.join(charts_dir, filename)
 
-        # より鮮やかで見やすい色のパレット
         colors = [
-            "#FF6B6B",  # コーラルレッド
-            "#4ECDC4",  # ターコイズ
-            "#45B7D1",  # ブルー
-            "#96CEB4",  # ミントグリーン
-            "#FECA57",  # ゴールド
-            "#FF9FF3",  # ピンク
-            "#54A0FF",  # ライトブルー
-            "#5F27CD",  # パープル
-            "#00D2D3",  # シアン
-            "#FF9F43",  # オレンジ
+            "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FECA57",
+            "#FF9FF3", "#54A0FF", "#5F27CD", "#00D2D3", "#FF9F43",
         ]
 
-        font_name_to_use = None
-        # URL from subtask description, with _COLON_ replaced
-        font_download_url = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansjp/NotoSansJP-Regular.ttf"
-        font_filename = "NotoSansJP-Regular.ttf"
-        # Correctly determine temp_font_dir relative to the task_solution directory
-        base_dir = os.path.dirname(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        )  # This should be task_solution
-        temp_font_dir = os.path.join(base_dir, "temp_fonts")
-        local_font_path = os.path.join(temp_font_dir, font_filename)
-
-        os.makedirs(temp_font_dir, exist_ok=True)
-        print(f"Temp font directory: {temp_font_dir}")
-
-        if not os.path.exists(local_font_path):
-            print(
-                f"Font {font_filename} not found locally. Attempting to download from {font_download_url}..."
-            )
-            try:
-                actual_url = (
-                    font_download_url  # This variable already has the correct URL.
-                )
-
-                # Create a request object with a User-Agent header
-                req = urllib.request.Request(
-                    actual_url,
-                    data=None,
-                    headers={
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-                    },
-                )
-
-                with urllib.request.urlopen(req) as response, open(
-                    local_font_path, "wb"
-                ) as out_file:
-                    if response.status == 200:
-                        data = response.read()  # Read data from response
-                        out_file.write(data)  # Write to file
-                        print(f"Font downloaded successfully to {local_font_path}")
-                    else:
-                        print(
-                            f"Error during download: Server responded with status {response.status}"
-                        )
-                        local_font_path = None  # Indicate download failure
-
-            except Exception as e:
-                print(f"Error downloading font: {e}")
-                local_font_path = None
-        else:
-            print(f"Font {font_filename} found locally at {local_font_path}")
-
-        # フォント設定の改善（より確実な方法）
         font_prop = None
-        if local_font_path and os.path.exists(local_font_path):
-            try:
-                # FontPropertiesオブジェクトを直接使用
-                font_prop = fm.FontProperties(fname=local_font_path)
-                print(f"Successfully loaded font from: {local_font_path}")
-            except Exception as e:
-                print(f"Error loading downloaded font {local_font_path}: {e}")
-                font_prop = None
-
-        # フォントプロパティが取得できなかった場合のフォールバック
-        if font_prop is None:
-            try:
-                # システムの日本語フォントを検索
-                available_fonts = [f.name for f in fm.fontManager.ttflist]
-                japanese_fonts = [
-                    "Noto Sans CJK JP",
-                    "NotoSansCJK-Regular",
-                    "Hiragino Sans",
-                    "Yu Gothic",
-                    "Meiryo",
-                    "Takao",
-                    "DejaVu Sans",
-                ]
-
-                for font_name in japanese_fonts:
-                    if any(font_name.lower() in af.lower() for af in available_fonts):
+        try:
+            # システムにインストールされたフォントを指定
+            font_prop = fm.FontProperties(family='Noto Sans CJK JP')
+            print("Using system font: Noto Sans CJK JP")
+        except Exception as e:
+            print(f"Error loading system font Noto Sans CJK JP: {e}")
+            # フォールバックとして他の日本語フォントを試す (オプション)
+            available_fonts = [f.name for f in fm.fontManager.ttflist]
+            fallback_japanese_fonts = ["NotoSansCJK-Regular", "Hiragino Sans", "Yu Gothic", "Meiryo", "Takao", "DejaVu Sans"] #DejaVu Sans は日本語向きではないので最後に
+            for font_name in fallback_japanese_fonts:
+                if any(font_name.lower() in af.lower() for af in available_fonts): # 大文字小文字を区別しないマッチング
+                    try:
                         font_prop = fm.FontProperties(family=font_name)
-                        print(f"Using system font: {font_name}")
+                        print(f"Using system fallback font: {font_name}")
                         break
+                    except Exception:
+                        continue
+            if font_prop is None: # それでも見つからない場合
+                print("No Japanese font found, using default font.")
+                font_prop = fm.FontProperties() # デフォルトフォント
 
-                if font_prop is None:
-                    # 最後の手段：利用可能なフォントから日本語対応フォントを探す
-                    for af in available_fonts:
-                        if any(
-                            keyword in af.lower()
-                            for keyword in ["noto", "cjk", "jp", "japanese"]
-                        ):
-                            font_prop = fm.FontProperties(family=af)
-                            print(f"Found Japanese font: {af}")
-                            break
 
-            except Exception as e:
-                print(f"Error finding system fonts: {e}")
+        # Adjust chart size and text sizes
+        fig, ax = plt.subplots(figsize=(7, 5), dpi=100) # Smaller figure size, adjusted aspect ratio
 
-        if font_prop is None:
-            print("No Japanese font found, using default font")
-            font_prop = fm.FontProperties()  # デフォルトフォント
-
-        # グラフのサイズと品質を向上
-        fig, ax = plt.subplots(figsize=(10, 8), dpi=100)
-
-        # 円グラフの作成（フォントプロパティを直接指定）
         wedges, texts, autotexts = ax.pie(
             sizes,
             labels=labels,
             autopct="%1.1f%%",
             startangle=90,
-            colors=colors[: len(labels)],  # ラベル数に応じて色を選択
-            textprops={"fontproperties": font_prop, "fontsize": 12, "weight": "bold"},
-            pctdistance=0.85,
+            colors=colors[: len(labels)],
+            textprops={"fontproperties": font_prop, "fontsize": 10, "weight": "normal"}, # Smaller label font size
+            pctdistance=0.80, # Adjust pctdistance if labels overlap
         )
 
-        # パーセンテージテキストの色を白に設定（視認性向上）
         for autotext in autotexts:
             autotext.set_color("white")
             autotext.set_weight("bold")
-            autotext.set_fontsize(11)
+            autotext.set_fontsize(9) # Smaller percentage font size
             autotext.set_fontproperties(font_prop)
 
-        # ラベルテキストの設定
         for text in texts:
-            text.set_fontsize(12)
-            text.set_weight("bold")
+            text.set_fontsize(10) # Smaller label text
+            # text.set_weight("bold") # Making labels normal weight for potentially cleaner look
             text.set_fontproperties(font_prop)
 
+
         ax.axis("equal")
-
-        # タイトルの設定（フォントプロパティを指定）
         plt.title(
-            "作業時間割合", fontsize=16, weight="bold", pad=20, fontproperties=font_prop
+            "作業時間割合", fontsize=14, weight="bold", pad=15, fontproperties=font_prop # Smaller title
         )
-
-        # 背景色を設定（オプション）
         fig.patch.set_facecolor("white")
 
         try:
-            plt.tight_layout()
-            plt.savefig(filepath, dpi=150, bbox_inches="tight", facecolor="white")
+            plt.tight_layout() # Apply tight_layout before savefig
+            plt.savefig(filepath, dpi=100, bbox_inches="tight", facecolor="white") # Adjusted savefig dpi
             plt.close(fig)
             print(f"Pie chart saved successfully to {filepath}")
+            if os.path.exists(filepath):
+                print(f"File check inside generate_pie_chart_path: {filepath} exists.")
+            else:
+                print(f"File check inside generate_pie_chart_path: {filepath} DOES NOT exist.")
         except Exception as e:
             print(f"Error saving pie chart: {e}")
             return ""

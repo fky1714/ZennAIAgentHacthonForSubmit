@@ -8,33 +8,12 @@ import os
 # current_dir = os.path.dirname(os.path.abspath(__file__)) # This is task_solution
 # project_root = os.path.dirname(current_dir) # This would be one level above task_solution
 
-# The instruction is to run from task_solution directory, so direct imports should be fine.
 from agents.report_maker.time_table_maker import TimeTable, TimeTableList
 from agents.report_maker.report_maker import ReportInfo, Reference
 
-def run_test():
-    print("Starting chart generation test...")
-    # The test is to be run from task_solution directory.
-    # File paths for chart generation are relative to time_table_maker.py,
-    # which is task_solution/agents/report_maker/time_table_maker.py
-    # So, os.path.join(os.path.dirname(__file__), "..", "..", "static", "generated_charts")
-    # from time_table_maker.py becomes:
-    # task_solution/agents/report_maker/../../static/generated_charts
-    # = task_solution/static/generated_charts
-
-    # 1. Create Sample TimeTable data
-    sample_time_entries = [
-        TimeTable(task_type="開発作業", start_time="09:00", end_time="11:00"), # "Development Work"
-        TimeTable(task_type="顧客ミーティング", start_time="11:00", end_time="11:30"), # "Client Meeting"
-        TimeTable(task_type="休憩時間", start_time="12:00", end_time="13:00"), # "Rest Time" (should be excluded from chart)
-        TimeTable(task_type="市場調査", start_time="14:00", end_time="15:30"), # "Market Research"
-        TimeTable(task_type="開発作業", start_time="15:30", end_time="17:00"), # "Development Work"
-    ]
-    # Expected chart data (with Japanese labels): 開発作業, 顧客ミーティング, 市場調査
-    time_table_list = TimeTableList(time_table=sample_time_entries)
-
-    # 2. Create dummy ReportInfo
-    report_info = ReportInfo(
+# Helper function to create a dummy ReportInfo object
+def create_dummy_report_info():
+    return ReportInfo(
         title="テストレポート",
         abstract="これはテストレポートの概要です。",
         done_tasks=["タスク1完了", "タスク2完了"],
@@ -43,63 +22,161 @@ def run_test():
         references=[Reference(title="参考資料1", url="http://example.com")]
     )
 
-    # 3. Generate chart path (for verification of creation and path)
-    # This path is what to_markdown will eventually use.
-    # Test script is in task_solution, CWD will be task_solution
-    print(f"Current working directory during test: {os.getcwd()}")
+def test_chart_with_multiple_types_including_rest():
+    print("\n--- Test: Multiple types including Rest ---")
+    sample_entries = [
+        TimeTable(task_type="開発作業", start_time="09:00", end_time="11:00"),
+        TimeTable(task_type="顧客ミーティング", start_time="11:00", end_time="11:30"),
+        TimeTable(task_type="休憩", start_time="12:00", end_time="13:00"), # "休憩" should be included
+        TimeTable(task_type="市場調査", start_time="14:00", end_time="15:30"),
+        TimeTable(task_type="離席", start_time="15:30", end_time="16:00"), # "離席" should be excluded
+    ]
+    time_table_list = TimeTableList(time_table=sample_entries)
+    report_info = create_dummy_report_info()
 
-    # The generate_pie_chart_path method builds path like:
-    # charts_dir = os.path.join(os.path.dirname(__file__), "..", "..", "static", "generated_charts")
-    # where __file__ is time_table_maker.py. So path is relative from there.
-    # It correctly resolves to task_solution/static/generated_charts
+    # Verify get_task_types_for_chart
+    chart_task_types = time_table_list.get_task_types_for_chart()
+    assert "開発作業" in chart_task_types
+    assert "顧客ミーティング" in chart_task_types
+    assert "休憩" in chart_task_types # Crucial: Rest is IN
+    assert "市場調査" in chart_task_types
+    assert "離席" not in chart_task_types # Crucial: Away is OUT
+    print(f"Chart task types: {chart_task_types.keys()} - Correct.")
 
-    chart_path_for_markdown_display = time_table_list.generate_pie_chart_path() # This is the URL like /static/...
-    print(f"Generated chart URL for Markdown: {chart_path_for_markdown_display}")
-
-    if chart_path_for_markdown_display:
-        # The path returned is like "/static/generated_charts/pie_chart_uuid.png"
-        # To check for file existence, we need a path relative to CWD (task_solution)
-        # So, "static/generated_charts/pie_chart_uuid.png"
-        relative_chart_file_path = chart_path_for_markdown_display.lstrip('/')
-        # actual_chart_file_path = os.path.join(os.getcwd(), relative_chart_file_path) # This would be task_solution/static/...
-        # Simpler: just use the relative path directly if CWD is task_solution
-
-        print(f"Expecting chart file relative to CWD (task_solution): {relative_chart_file_path}")
-
-        if os.path.exists(relative_chart_file_path):
-            print(f"SUCCESS: Chart image file successfully created at: {relative_chart_file_path} (relative to CWD)")
-        else:
-            print(f"ERROR: Chart image file NOT found at: {relative_chart_file_path} (relative to CWD)")
-            # For debugging, list contents of the expected directory
-            charts_dir = os.path.join("static", "generated_charts") # Relative to CWD
-            if os.path.exists(charts_dir):
-                print(f"Contents of {charts_dir}: {os.listdir(charts_dir)}")
-            else:
-                print(f"Directory {charts_dir} does not exist.")
-    elif not chart_path_for_markdown_display and any(t.task_type not in ["休憩", "離席"] for t in time_table_list.time_table):
-        print("ERROR: Chart path is empty, but there was data to plot. Chart generation might have failed.")
-    elif not any(t.task_type not in ["休憩", "離席"] for t in time_table_list.time_table):
-        print("INFO: No chart generated as there were no time entries (or only excluded ones).")
-
-
-    # 4. Generate Markdown (this will also call generate_pie_chart_path internally again, creating a *new* chart)
+    # Verify chart generation and markdown output
     markdown_output = report_info.to_markdown(time_table_list)
-    print("\n--- Markdown Output ---")
-    print(markdown_output)
-    print("--- End of Markdown Output ---\n")
+    # print(f"Markdown for multiple types (incl. Rest):\n{markdown_output}")
+    assert "![作業時間割合の円グラフ](/static/generated_charts/pie_chart_" in markdown_output
+    assert "休憩" in markdown_output # Check if "休憩" is mentioned, likely in the chart labels or durations
+    assert "離席" not in markdown_output or "離席: " not in time_table_list.total_duration_by_type() #離席は作業時間集計にも出ない想定
+    print("SUCCESS: Chart generated for multiple types including '休憩', '離席' excluded.")
 
-    # Check the image path in the markdown output
-    if chart_path_for_markdown_display and chart_path_for_markdown_display in markdown_output:
-        print(f"SUCCESS: Chart path {chart_path_for_markdown_display} found in Markdown output.")
-    elif chart_path_for_markdown_display:
-        print(f"WARNING: The specific chart path {chart_path_for_markdown_display} (from first call) was not found in Markdown. A new chart was generated. This is expected.")
-        if "/static/generated_charts/pie_chart_" in markdown_output:
-             print("INFO: A new chart path like /static/generated_charts/pie_chart_... was found in markdown output as expected.")
-        else:
-             print("ERROR: No chart path found in markdown output.")
+    # Verify file creation (optional, as markdown check is primary)
+    chart_image_path_in_md = markdown_output.split("![作業時間割合の円グラフ](")[1].split(")")[0]
+    # Assuming CWD is repo root (/app), and chart_image_path_in_md is like "/static/..."
+    # We need to check "task_solution/static/..."
+    path_to_check = os.path.join("task_solution", chart_image_path_in_md.lstrip('/'))
+    assert os.path.exists(path_to_check), f"Chart file {path_to_check} not found."
+    print(f"Chart file {path_to_check} exists.")
 
 
-    print("Test finished.")
+def test_chart_with_single_task_type():
+    print("\n--- Test: Single task type (e.g., Development only) ---")
+    sample_entries = [
+        TimeTable(task_type="開発作業", start_time="09:00", end_time="17:00"),
+    ]
+    time_table_list = TimeTableList(time_table=sample_entries)
+    report_info = create_dummy_report_info()
+
+    chart_task_types = time_table_list.get_task_types_for_chart()
+    assert len(chart_task_types) == 1
+    assert "開発作業" in chart_task_types
+    print(f"Chart task types: {chart_task_types.keys()} - Correct (single).")
+
+    markdown_output = report_info.to_markdown(time_table_list)
+    # print(f"Markdown for single type:\n{markdown_output}")
+    assert "![作業時間割合の円グラフ]" not in markdown_output # No image tag
+    assert "（グラフは作業種別が複数の場合にのみ表示されます）" in markdown_output
+    print("SUCCESS: Chart NOT generated for single task type, message shown.")
+
+def test_chart_with_only_rest_task_type():
+    print("\n--- Test: Single task type (Rest only) ---")
+    sample_entries = [
+        TimeTable(task_type="休憩", start_time="12:00", end_time="13:00"),
+    ]
+    time_table_list = TimeTableList(time_table=sample_entries)
+    report_info = create_dummy_report_info()
+
+    chart_task_types = time_table_list.get_task_types_for_chart()
+    assert len(chart_task_types) == 1
+    assert "休憩" in chart_task_types
+    print(f"Chart task types: {chart_task_types.keys()} - Correct (single '休憩').")
+
+    markdown_output = report_info.to_markdown(time_table_list)
+    # print(f"Markdown for Rest only:\n{markdown_output}")
+    assert "![作業時間割合の円グラフ]" not in markdown_output
+    assert "（グラフは作業種別が複数の場合にのみ表示されます）" in markdown_output
+    print("SUCCESS: Chart NOT generated for '休憩' only, message shown.")
+
+
+def test_chart_with_only_away_task_type():
+    print("\n--- Test: Single task type (Away only) ---")
+    # This case should result in "no data" because "離席" is always excluded.
+    sample_entries = [
+        TimeTable(task_type="離席", start_time="12:00", end_time="13:00"),
+    ]
+    time_table_list = TimeTableList(time_table=sample_entries)
+    report_info = create_dummy_report_info()
+
+    chart_task_types = time_table_list.get_task_types_for_chart()
+    assert len(chart_task_types) == 0
+    print(f"Chart task types: {chart_task_types.keys()} - Correct (empty as '離席' is excluded).")
+
+    markdown_output = report_info.to_markdown(time_table_list)
+    # print(f"Markdown for Away only:\n{markdown_output}")
+    assert "![作業時間割合の円グラフ]" not in markdown_output
+    assert "（表示対象の作業時間データがありません）" in markdown_output # Different message
+    print("SUCCESS: Chart NOT generated for '離席' only, 'no data' message shown.")
+
+def test_chart_with_no_task_entries():
+    print("\n--- Test: No task entries ---")
+    sample_entries = []
+    time_table_list = TimeTableList(time_table=sample_entries)
+    report_info = create_dummy_report_info()
+
+    chart_task_types = time_table_list.get_task_types_for_chart()
+    assert len(chart_task_types) == 0
+    print(f"Chart task types: {chart_task_types.keys()} - Correct (empty).")
+
+    markdown_output = report_info.to_markdown(time_table_list)
+    # print(f"Markdown for no entries:\n{markdown_output}")
+    assert "![作業時間割合の円グラフ]" not in markdown_output
+    assert "（表示対象の作業時間データがありません）" in markdown_output
+    print("SUCCESS: Chart NOT generated for no entries, 'no data' message shown.")
+
+
+def run_all_tests():
+    print("Starting all chart generation tests...")
+    print(f"Current working directory during test: {os.getcwd()}") # Should be /app (repo root)
+
+    # Ensure the generated_charts directory exists for file creation checks
+    # This should point to task_solution/static/generated_charts from repo root
+    charts_dir_to_ensure = os.path.join("task_solution", "static", "generated_charts")
+    if not os.path.exists(charts_dir_to_ensure):
+        os.makedirs(charts_dir_to_ensure)
+        print(f"Created directory: {charts_dir_to_ensure}")
+
+    test_chart_with_multiple_types_including_rest()
+    test_chart_with_single_task_type()
+    test_chart_with_only_rest_task_type()
+    test_chart_with_only_away_task_type()
+    test_chart_with_no_task_entries()
+
+    print("\nAll chart generation tests finished.")
 
 if __name__ == "__main__":
-    run_test()
+    # Add project root to sys.path to allow imports from agents module
+    # This is necessary if test_chart_generation.py is run directly from task_solution
+    # and agents is a sibling directory.
+    # current_dir = os.path.dirname(os.path.abspath(__file__)) # task_solution
+    # project_root = os.path.dirname(current_dir) # One level up
+    # sys.path.insert(0, project_root)
+    # No, the instruction is to run from `task_solution`, so `agents` should be directly importable.
+
+    # If running from repository root (e.g., via a script), this might be needed:
+    # if "task_solution" not in os.getcwd():
+    #     os.chdir("task_solution")
+    #     print(f"Changed CWD to: {os.getcwd()}")
+
+    # The problem states the CWD will be task_solution, so direct imports are fine.
+    # We need to handle the path for `matplotlib.font_manager` if it tries to write cache.
+    # This usually goes to ~/.matplotlib. If sandbox has no write access there, it might fail.
+    # However, font downloading is to a local `temp_fonts` dir.
+
+    # Make sure `temp_fonts` directory exists before `TimeTableList` tries to use it.
+    # (Though `TimeTableList` itself creates it, good to be defensive in tests if needed)
+    # base_dir_for_fonts = os.path.dirname(os.path.abspath(__file__)) # task_solution
+    # temp_font_dir_for_tests = os.path.join(base_dir_for_fonts, "temp_fonts")
+    # os.makedirs(temp_font_dir_for_tests, exist_ok=True)
+
+    run_all_tests()

@@ -12,7 +12,7 @@
 
 {task_duration}
 
-![作業時間割合の円グラフ]({chart_image_path})
+{chart_content}
 
 ---
 
