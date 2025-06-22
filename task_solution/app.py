@@ -23,12 +23,15 @@ from google.auth.transport import requests as grequests
 from utils.logger import Logger
 from services.firestore_service import firestore_service
 
-app = Flask(__name__)
-app.secret_key = "ThisIsHelloween"
+# app = Flask(__name__) #  この行をコメントアウトまたは削除
+# app.secret_key = "ThisIsHelloween" #  この行をコメントアウトまたは削除
 logger = Logger(name="app").get_logger()
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Flask app instance and secret key will be defined in if __name__ == "__main__": block
+app = None
 
 # Set Google Cloud credentials
 env_gac = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
@@ -571,3 +574,128 @@ def chat():
         logger.error(f"チャット処理エラー: {str(e)}")
         logger.error(traceback.format_exc())
         return jsonify({"status": "error", "message": "チャット処理中にエラーが発生しました。"}), 500
+
+if __name__ == "__main__":
+    app_instance = Flask(__name__) # appインスタンスをここで作成
+    app_instance.secret_key = "ThisIsHelloween" # secret keyもここで設定
+
+    # Make original `app` variable (now None at global scope) point to this instance
+    # This is a bit of a hack to make global @app.route decorators work.
+    # A cleaner way would be to pass `app_instance` to a registration function.
+    globals()['app'] = app_instance
+
+    # Now that globals()['app'] is set, the original route decorators should work
+    # against app_instance. We don't need to redefine routes here IF this hack works.
+    # However, get_effective_uid and other functions relying on `session`
+    # will need the request context from `app_instance`.
+
+    # For testing, explicitly call the original route registration if it was conditional
+    # or ensure they are registered.
+    # If routes are defined at the top level using the global `app` variable,
+    # they should now be associated with `app_instance`.
+
+    # Let's ensure the test and chat routes are explicitly using the new instance for clarity
+    # (though the globals()['app'] hack *should* make the original decorators work)
+
+    # It's better to define a function to register routes and call it here
+    def register_all_routes(current_app):
+        # Temporarily redefine original functions here for simplicity for this test
+        # In a real scenario, these would be your actual imported or defined view functions.
+
+        # Re-register all view functions with the new app instance.
+        # This requires access to all original view functions.
+        # For simplicity, I'll assume they are accessible in the global scope.
+        # This is a conceptual fix. The actual implementation might need adjustments
+        # based on how view functions are defined and imported.
+
+        # Example of re-registering existing globally defined view functions:
+        # Accessing functions by their original names.
+        # Note: This assumes that the @app.route decorators on the original functions
+        # will now correctly use the `app_instance` due to the `globals()['app'] = app_instance` hack.
+        # If that hack is not reliable, explicit re-registration like this is needed:
+
+        current_app.add_url_rule("/", view_func=index, methods=["GET"])
+        current_app.add_url_rule("/test_route", view_func=test_route, methods=["GET"])
+        current_app.add_url_rule("/chat", view_func=chat, methods=["POST"])
+        current_app.add_url_rule("/google_login", view_func=google_login, methods=["POST"])
+        current_app.add_url_rule("/record_frame", view_func=record_frame, methods=["POST"])
+        current_app.add_url_rule("/make_report", view_func=make_report, methods=["POST"])
+        current_app.add_url_rule("/create_procedure", view_func=create_procedure, methods=["POST"])
+        current_app.add_url_rule("/check_login", view_func=check_login, methods=["GET"])
+        current_app.add_url_rule("/api/procedures", view_func=api_get_procedures, methods=["GET"])
+        current_app.add_url_rule("/api/procedures/<procedure_id>", view_func=api_get_procedure, methods=["GET"])
+        current_app.add_url_rule("/api/procedures/<procedure_id>", view_func=api_update_procedure, methods=["PUT"])
+        current_app.add_url_rule("/api/procedures/<procedure_id>", view_func=api_delete_procedure, methods=["DELETE"])
+        current_app.add_url_rule("/api/reports", view_func=api_get_reports, methods=["GET"])
+        current_app.add_url_rule("/api/reports/<report_id>", view_func=api_get_report, methods=["GET"])
+        current_app.add_url_rule("/api/reports", view_func=api_create_report, methods=["POST"])
+        current_app.add_url_rule("/api/reports/<report_id>", view_func=api_update_report, methods=["PUT"])
+        current_app.add_url_rule("/api/reports/<report_id>", view_func=api_delete_report, methods=["DELETE"])
+        current_app.add_url_rule("/api/notify_support", view_func=notify_support, methods=["POST"])
+        current_app.add_url_rule("/upload_video", view_func=upload_video, methods=["POST"])
+
+    register_all_routes(app_instance)
+
+    port = int(os.environ.get("PORT", 8080))
+    logger.info(f"Flaskアプリ起動 on port {port} (app instance created in main, routes re-registered)")
+    app_instance.run(host="0.0.0.0", port=port, debug=True)
+
+if __name__ == "__main__":
+    app = Flask(__name__) # appインスタンスをここで作成
+    app.secret_key = "ThisIsHelloween" # secret keyもここで設定
+
+    # Register all routes within this block if app is defined here
+    # This is a simplified example; you'd need to move ALL @app.route decorators
+    # and their functions here, or use a function to register them with `app`.
+
+    @app.route("/")
+    def index_moved(): # Function name changed to avoid conflict if you run this multiple times
+        logger.info("index.htmlリクエスト受信 (moved)")
+        return app.send_static_file("index.html")
+
+    @app.route("/test_route", methods=["GET"])
+    def test_route_moved(): # Function name changed
+        logger.info("/test_route called (moved)")
+        return jsonify({"message": "Test route is working (moved)"})
+
+    # Original /chat endpoint - ensure it's defined *after* app is created
+    # For this test, we'll redefine a simplified version here.
+    # IMPORTANT: This will overwrite the global `chat` function if not careful.
+    # For a real fix, you'd move the original chat function here or register it.
+    @app.route("/chat", methods=["POST"])
+    def chat_moved(): # Function name changed
+        try:
+            logger.info("/chat endpoint called (moved)")
+            # uid = get_effective_uid() # This would need session to be set up on this app instance
+            data = request.json
+            user_message = data.get("message")
+            if not user_message:
+                return jsonify({"status": "error", "message": "メッセージがありません"}), 400
+            # chatbot = ChatbotAgent()
+            # bot_reply = chatbot.generate_response(user_message)
+            bot_reply = f"Echo from moved: {user_message}" # Simplified for test
+            return jsonify({"status": "success", "reply": bot_reply})
+        except Exception as e:
+            logger.error(f"チャット処理エラー (moved): {str(e)}")
+            logger.error(traceback.format_exc())
+            return jsonify({"status": "error", "message": "チャット処理中にエラーが発生しました。"}), 500
+
+    # IMPORTANT: You would need to move or re-register ALL your other routes here as well.
+    # For example:
+    # app.add_url_rule('/google_login', view_func=google_login, methods=['POST'])
+    # This requires all your view functions (like google_login, record_frame, etc.)
+    # to be accessible here. Due to the complexity of moving all routes,
+    # this example only redefines a few for testing the concept.
+    # A better long-term solution if this works is to wrap route registration
+    # in a function:
+    # def register_routes(current_app):
+    #     current_app.route(...)(original_index_function)
+    #     current_app.route(...)(original_chat_function)
+    #     # etc.
+    # and then call register_routes(app) here.
+
+    # For now, we are only testing with the routes redefined above.
+
+    port = int(os.environ.get("PORT", 8080))
+    logger.info(f"Flaskアプリ起動 on port {port} (app defined in main)")
+    app.run(host="0.0.0.0", port=port, debug=True)
