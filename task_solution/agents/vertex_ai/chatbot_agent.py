@@ -3,7 +3,7 @@ from .base_vertex_ai import BaseVertexAI
 from utils.logger import Logger
 
 class ChatbotAgent(BaseVertexAI):
-    def __init__(self, model_name="gemini-1.0-pro"): # モデル名を指定
+    def __init__(self, model_name="gemini-pro"): # モデル名を "gemini-pro" に変更
         super().__init__(model_name)
         self.logger = Logger(name=self.__class__.__name__).get_logger()
         # Chatbot用のresponse_schemeは単純なテキスト応答なので、設定しないか、

@@ -37,11 +37,11 @@ function sendWelcomeMessage() {
 // Function to handle user input
 function handleUserInput(res) {
   const userMessage = res.value;
-  // Display user message
-  botui.message.add({
-    human: true,
-    content: userMessage
-  });
+  // Display user message - This is now handled by BotUI when action.text resolves.
+  // botui.message.add({
+  //   human: true,
+  //   content: userMessage
+  // });
 
   // Send user message to backend and display bot response
   fetch('/chat', {
