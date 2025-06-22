@@ -536,13 +536,20 @@ def upload_video():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     logger.info(f"Flaskアプリ起動 on port {port}")
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=True) # Added debug=True
 
+
+# Test route
+@app.route("/test_route", methods=["GET"])
+def test_route():
+    logger.info("/test_route called")
+    return jsonify({"message": "Test route is working"})
 
 # Chatbot endpoint
 @app.route("/chat", methods=["POST"])
 def chat():
     try:
+        logger.info("/chat endpoint called") # Added logger
         uid = get_effective_uid()
         logger.info(f"/chat リクエスト受信: uid={uid}")
         data = request.json
