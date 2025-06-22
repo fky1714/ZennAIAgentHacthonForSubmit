@@ -10,7 +10,6 @@ matplotlib.use("Agg")  # Ensure matplotlib doesn't try to use a GUI backend
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 import os
-# import urllib.request # フォントダウンロード処理を削除したので不要
 import uuid
 
 
@@ -79,7 +78,9 @@ class TimeTableList(BaseModel):
         task_durations_list = []
         for task_type, duration in type_durations.items():
             if task_type != "離席":
-                task_durations_list.append(f"    {task_type}: {self._format_timedelta_jp(duration)}")
+                task_durations_list.append(
+                    f"    {task_type}: {self._format_timedelta_jp(duration)}"
+                )
 
         task_durations = "\n".join(task_durations_list)
         return whole_task_duration + task_durations
@@ -117,35 +118,39 @@ class TimeTableList(BaseModel):
         filepath = os.path.join(charts_dir, filename)
 
         colors = [
-            "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FECA57",
-            "#FF9FF3", "#54A0FF", "#5F27CD", "#00D2D3", "#FF9F43",
+            "#FF6B6B",
+            "#4ECDC4",
+            "#45B7D1",
+            "#96CEB4",
+            "#FECA57",
+            "#FF9FF3",
+            "#54A0FF",
+            "#5F27CD",
+            "#00D2D3",
+            "#FF9F43",
         ]
 
-        font_prop = None
-        try:
-            # システムにインストールされたフォントを指定
-            font_prop = fm.FontProperties(family='Noto Sans CJK JP')
-            print("Using system font: Noto Sans CJK JP")
-        except Exception as e:
-            print(f"Error loading system font Noto Sans CJK JP: {e}")
-            # フォールバックとして他の日本語フォントを試す (オプション)
-            available_fonts = [f.name for f in fm.fontManager.ttflist]
-            fallback_japanese_fonts = ["NotoSansCJK-Regular", "Hiragino Sans", "Yu Gothic", "Meiryo", "Takao", "DejaVu Sans"] #DejaVu Sans は日本語向きではないので最後に
-            for font_name in fallback_japanese_fonts:
-                if any(font_name.lower() in af.lower() for af in available_fonts): # 大文字小文字を区別しないマッチング
-                    try:
-                        font_prop = fm.FontProperties(family=font_name)
-                        print(f"Using system fallback font: {font_name}")
-                        break
-                    except Exception:
-                        continue
-            if font_prop is None: # それでも見つからない場合
-                print("No Japanese font found, using default font.")
-                font_prop = fm.FontProperties() # デフォルトフォント
+        available_fonts = [f.name for f in fm.fontManager.ttflist]
+        japanese_fonts = [
+            "Noto Sans CJK JP",
+            "NotoSansCJK-Regular",
+            "Hiragino Sans",
+            "Yu Gothic",
+            "Meiryo",
+            "Takao",
+            "DejaVu Sans",
+        ]
 
+        for font_name in japanese_fonts:
+            if any(font_name.lower() in af.lower() for af in available_fonts):
+                font_prop = fm.FontProperties(family=font_name)
+                print(f"Using system fallback font: {font_name}")
+                break
 
         # Adjust chart size and text sizes
-        fig, ax = plt.subplots(figsize=(7, 5), dpi=100) # Smaller figure size, adjusted aspect ratio
+        fig, ax = plt.subplots(
+            figsize=(7, 5), dpi=100
+        )  # Smaller figure size, adjusted aspect ratio
 
         wedges, texts, autotexts = ax.pie(
             sizes,
@@ -153,37 +158,48 @@ class TimeTableList(BaseModel):
             autopct="%1.1f%%",
             startangle=90,
             colors=colors[: len(labels)],
-            textprops={"fontproperties": font_prop, "fontsize": 10, "weight": "normal"}, # Smaller label font size
-            pctdistance=0.80, # Adjust pctdistance if labels overlap
+            textprops={
+                "fontproperties": font_prop,
+                "fontsize": 10,
+                "weight": "normal",
+            },  # Smaller label font size
+            pctdistance=0.80,  # Adjust pctdistance if labels overlap
         )
 
         for autotext in autotexts:
             autotext.set_color("white")
             autotext.set_weight("bold")
-            autotext.set_fontsize(9) # Smaller percentage font size
+            autotext.set_fontsize(9)  # Smaller percentage font size
             autotext.set_fontproperties(font_prop)
 
         for text in texts:
-            text.set_fontsize(10) # Smaller label text
+            text.set_fontsize(10)  # Smaller label text
             # text.set_weight("bold") # Making labels normal weight for potentially cleaner look
             text.set_fontproperties(font_prop)
 
-
         ax.axis("equal")
         plt.title(
-            "作業時間割合", fontsize=14, weight="bold", pad=15, fontproperties=font_prop # Smaller title
+            "作業時間割合",
+            fontsize=14,
+            weight="bold",
+            pad=15,
+            fontproperties=font_prop,  # Smaller title
         )
         fig.patch.set_facecolor("white")
 
         try:
-            plt.tight_layout() # Apply tight_layout before savefig
-            plt.savefig(filepath, dpi=100, bbox_inches="tight", facecolor="white") # Adjusted savefig dpi
+            plt.tight_layout()  # Apply tight_layout before savefig
+            plt.savefig(
+                filepath, dpi=100, bbox_inches="tight", facecolor="white"
+            )  # Adjusted savefig dpi
             plt.close(fig)
             print(f"Pie chart saved successfully to {filepath}")
             if os.path.exists(filepath):
                 print(f"File check inside generate_pie_chart_path: {filepath} exists.")
             else:
-                print(f"File check inside generate_pie_chart_path: {filepath} DOES NOT exist.")
+                print(
+                    f"File check inside generate_pie_chart_path: {filepath} DOES NOT exist."
+                )
         except Exception as e:
             print(f"Error saving pie chart: {e}")
             return ""
