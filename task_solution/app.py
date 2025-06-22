@@ -633,6 +633,6 @@ if __name__ == "__main__":
 
     # For now, we are only testing with the routes redefined above.
 
-    port = int(os.environ.get("PORT", 8080))
-    logger.info(f"Flaskアプリ起動 on port {port} (app defined in main)")
-    app.run(host="0.0.0.0", port=port, debug=True)
+    # port = int(os.environ.get("PORT", 8080)) # Commented out the second port variable
+    # logger.info(f"Flaskアプリ起動 on port {port} (app defined in main)") # Commented out the second logger
+    # app.run(host="0.0.0.0", port=port, debug=True) # Commented out the second app.run
