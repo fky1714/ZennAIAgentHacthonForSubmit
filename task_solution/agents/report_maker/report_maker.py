@@ -28,9 +28,11 @@ class ReportInfo(BaseModel):
             reference = Reference(title=ref_data["title"], url=ref_data["url"])
             references.append(reference)
 
+        current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        title_with_date = f"{current_date} {json_data['title']}"
         # クラスメソッドからインスタンスを作成
         return cls(
-            title=json_data["title"],
+            title=title_with_date,
             abstract=json_data["abstract"],
             done_tasks=json_data["done_tasks"],
             problems=json_data["problems"],
@@ -52,17 +54,23 @@ class ReportInfo(BaseModel):
         # グラフ表示対象の作業種別を取得
         task_types_for_chart = time_table_list.get_task_types_for_chart()
 
-        chart_content_markdown = "" # report_template.md の {chart_content} に渡す文字列
+        chart_content_markdown = (
+            ""  # report_template.md の {chart_content} に渡す文字列
+        )
 
         if len(task_types_for_chart) > 1:
             chart_image_path = time_table_list.generate_pie_chart_path()
             if chart_image_path:
-                chart_content_markdown = f"![作業時間割合の円グラフ]({chart_image_path})"
+                chart_content_markdown = (
+                    f"![作業時間割合の円グラフ]({chart_image_path})"
+                )
             else:
                 chart_content_markdown = "\n（グラフの生成に失敗しました）"
         elif len(task_types_for_chart) == 1:
-            chart_content_markdown = "\n（グラフは作業種別が複数の場合にのみ表示されます）"
-        else: # 0件の場合
+            chart_content_markdown = (
+                "\n（グラフは作業種別が複数の場合にのみ表示されます）"
+            )
+        else:  # 0件の場合
             chart_content_markdown = "\n（表示対象の作業時間データがありません）"
 
         # テンプレートに渡す値を準備
@@ -72,7 +80,7 @@ class ReportInfo(BaseModel):
             "problems": self.problems_to_str(),
             "feedback": self.feedback,
             "task_duration": time_table_list.total_duration_by_type(),
-            "chart_content": chart_content_markdown # 新しいプレースホルダに対応
+            "chart_content": chart_content_markdown,  # 新しいプレースホルダに対応
         }
 
         rendered_report = report_template.format(**format_params)
