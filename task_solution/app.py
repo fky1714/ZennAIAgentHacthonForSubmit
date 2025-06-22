@@ -13,6 +13,7 @@ from services import (
     make_procedure_from_mp4,
     generate_notification_message,
 )
+from agents.vertex_ai.chatbot_agent import ChatbotAgent # ChatbotAgent をインポート
 
 # Google認証用
 from google.oauth2 import id_token
@@ -537,4 +538,29 @@ if __name__ == "__main__":
     logger.info(f"Flaskアプリ起動 on port {port}")
     app.run(host="0.0.0.0", port=port)
 
-# Removed duplicate block
+
+# Chatbot endpoint
+@app.route("/chat", methods=["POST"])
+def chat():
+    try:
+        uid = get_effective_uid()
+        logger.info(f"/chat リクエスト受信: uid={uid}")
+        data = request.json
+        user_message = data.get("message")
+
+        if not user_message:
+            logger.warning("メッセージがありません")
+            return jsonify({"status": "error", "message": "メッセージがありません"}), 400
+
+        # ChatbotAgentのインスタンスを作成し、応答を生成
+        # ChatbotAgentの初期化方法は、実際のクラス定義に合わせて調整が必要
+        chatbot = ChatbotAgent()
+        bot_reply = chatbot.generate_response(user_message) # generate_responseメソッドを想定
+
+        logger.info(f"Bot応答: {bot_reply}")
+        return jsonify({"status": "success", "reply": bot_reply})
+
+    except Exception as e:
+        logger.error(f"チャット処理エラー: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({"status": "error", "message": "チャット処理中にエラーが発生しました。"}), 500

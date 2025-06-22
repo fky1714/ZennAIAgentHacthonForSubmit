@@ -7,9 +7,15 @@
   <title>Sofia</title>
   <!-- Flask の静的ファイルとして読み込む場合、絶対パスで /static を明記 -->
   <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/botui/build/botui.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/botui/build/botui-theme-default.css">
 </head>
 
 <body>
+  <div id="chatBotWidget" class="chat-widget">💬</div>
+  <div id="botui-app" class="botui-app-container">
+    <bot-ui></bot-ui>
+  </div>
   <div class="sidebar">
     <h2>メニュー</h2>
     <ul>
@@ -195,6 +201,9 @@
   <script src="/static/js/report.js"></script>
   <script src="/static/js/menu.js"></script>
   <script src="/static/js/recording.js"></script>
+  <script src="https://cdn.jsdelivr.net/vue/latest/vue.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/botui/build/botui.js"></script>
+  <script src="/static/js/chat.js"></script>
   <!-- ログイン状態確認用スクリプト -->
   <script>
     function checkLogin() {
