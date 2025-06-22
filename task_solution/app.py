@@ -539,20 +539,13 @@ def upload_video():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     logger.info(f"Flaskアプリ起動 on port {port}")
-    app.run(host="0.0.0.0", port=port, debug=True) # Added debug=True
-
-
-# Test route
-@app.route("/test_route", methods=["GET"])
-def test_route():
-    logger.info("/test_route called")
-    return jsonify({"message": "Test route is working"})
+    # app.run(host="0.0.0.0", port=port, debug=True) # This line is now the sole app.run at the end of the file
 
 # Chatbot endpoint
 @app.route("/chat", methods=["POST"])
 def chat():
     try:
-        logger.info("/chat endpoint called") # Added logger
+        logger.info("/chat endpoint called")
         uid = get_effective_uid()
         logger.info(f"/chat リクエスト受信: uid={uid}")
         data = request.json
@@ -562,10 +555,8 @@ def chat():
             logger.warning("メッセージがありません")
             return jsonify({"status": "error", "message": "メッセージがありません"}), 400
 
-        # ChatbotAgentのインスタンスを作成し、応答を生成
-        # ChatbotAgentの初期化方法は、実際のクラス定義に合わせて調整が必要
         chatbot = ChatbotAgent()
-        bot_reply = chatbot.generate_response(user_message) # generate_responseメソッドを想定
+        bot_reply = chatbot.generate_response(user_message)
 
         logger.info(f"Bot応答: {bot_reply}")
         return jsonify({"status": "success", "reply": bot_reply})
@@ -576,10 +567,9 @@ def chat():
         return jsonify({"status": "error", "message": "チャット処理中にエラーが発生しました。"}), 500
 
 if __name__ == "__main__":
-    # app instance is now defined at the top level
     port = int(os.environ.get("PORT", 8080))
     logger.info(f"Flaskアプリ起動 on port {port}")
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=True) # This is the single, correct app.run()
 
     # Register all routes within this block if app is defined here
     # This is a simplified example; you'd need to move ALL @app.route decorators
