@@ -1,4 +1,8 @@
-from agents import ProcedureDescriptor
+from agents.procedure_descriptor import (
+    VideoAnalyzer,
+    ConfidentialInfoReplacer,
+    ProcedureDescriptor,
+)
 from services.firestore_service import firestore_service
 from utils.logger import Logger
 
@@ -17,13 +21,19 @@ def make_procedure_from_mp4(
     """
     logger.info(f"uid: {uid}, task_name: {task_name}, user_request: '{user_request}'")
 
-    # ProcedureDescriptorで手順書体裁に
-    procedure_descriptor = ProcedureDescriptor()
-    procedure_info = procedure_descriptor.analyze_video(
-        task_name=task_name,
-        video_uri=video_url,
-        user_query=user_request,
+    # 動画から作業に関する情報wを抽出する
+    va = VideoAnalyzer()
+    procedure_info_text: str = va.analyze_video(
+        task_name=task_name, video_uri=video_url, user_query=user_request
     )
+
+    # 機密情報を変数化する
+    cir = ConfidentialInfoReplacer()
+    procedure_info_text = cir.replace(procedure_info_text=procedure_info_text)
+
+    # ProcedureDescriptorで手順書体裁に
+    pd = ProcedureDescriptor()
+    procedure_info = pd.extract_procedure_info(procedure_info_text=procedure_info_text)
 
     procedure_doc = procedure_info.to_document()
     logger.info(f"procedure_doc: {procedure_doc}")
