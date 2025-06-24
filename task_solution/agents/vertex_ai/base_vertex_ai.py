@@ -20,13 +20,23 @@ class BaseVertexAI:
 
     @property
     def generation_config(self):
+        # Default config for JSON output
+        if self.response_scheme:
+            return GenerationConfig(
+                response_mime_type="application/json",
+                response_schema=self.response_scheme,
+            )
+        # Default config for text/plain output if no schema is provided
         return GenerationConfig(
-            response_mime_type="application/json",
-            response_schema=self.response_scheme,
+            response_mime_type="text/plain",
         )
 
     def invoke(self, contents):
-        self.logger.info(f"contents > {contents[30:]}")
+        # Truncate log output for contents if it's too long
+        log_contents = str(contents)
+        if len(log_contents) > 100: # Log approx first 100 chars
+            log_contents = log_contents[:100] + "..."
+        self.logger.info(f"contents > {log_contents}")
         response = self.model.generate_content(
             contents,
             generation_config=self.generation_config,
