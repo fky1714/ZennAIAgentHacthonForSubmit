@@ -6,6 +6,8 @@ from utils.logger import Logger
 
 logger = Logger(name="firestore_service").get_logger()
 
+import os
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials.json"
 
 class FirestoreService:
     __instance = None
