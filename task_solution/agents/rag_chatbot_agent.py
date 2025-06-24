@@ -1,0 +1,190 @@
+# task_solution/agents/rag_chatbot_agent.py
+
+import os
+from google.cloud import firestore_v1
+from google.cloud.firestore_v1.vector import Vector
+from vertexai.language_models import TextEmbeddingModel # For embedding
+# For text generation, we can use the model from BaseVertexAI or TextGenerationModel directly
+# from vertexai.language_models import TextGenerationModel
+from vertexai.generative_models import GenerativeModel, Part, GenerationConfig # For Gemini (used in BaseVertexAI)
+
+from .vertex_ai.base_vertex_ai import BaseVertexAI
+from utils.logger import Logger # Assuming a logger utility exists
+
+# Define DistanceMeasure if not readily available or for clarity
+# from google.cloud.firestore_v1.types import DistanceMeasure # This might be the path
+
+class RagChatbotAgent(BaseVertexAI):
+    def __init__(
+        self,
+        firestore_collection: str = "chunks",
+        embedding_model_name: str = "textembedding-gecko@003", # Or another suitable model
+        generation_model_name: str = "gemini-1.0-pro", # Or another suitable model from BaseVertexAI
+        project_id: str = None,
+        location: str = None,
+        top_k: int = 5,
+        distance_measure: str = "COSINE", # COSINE, EUCLIDEAN, DOT_PRODUCT
+    ):
+        super().__init__(model_name=generation_model_name) # Initialize BaseVertexAI with the generation model
+        self.logger = Logger(name=self.__class__.__name__).get_logger()
+
+        if project_id is None:
+            project_id = os.getenv("GCP_PROJECT")
+        if location is None:
+            location = os.getenv("GCP_LOCATION", "us-central1") # Default location for Vertex AI
+
+        if not project_id:
+            self.logger.error("GCP_PROJECT environment variable or project_id parameter must be set.")
+            raise ValueError("GCP_PROJECT environment variable or project_id parameter must be set.")
+
+        self.db = firestore_v1.Client(project=project_id)
+        self.firestore_collection = firestore_collection
+        self.logger.info(f"Firestore client initialized for project: {project_id}, collection: {self.firestore_collection}")
+
+        try:
+            self.embedding_model = TextEmbeddingModel.from_pretrained(embedding_model_name)
+            self.logger.info(f"TextEmbeddingModel '{embedding_model_name}' initialized.")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize TextEmbeddingModel '{embedding_model_name}': {e}")
+            raise
+
+        self.top_k = top_k
+        if distance_measure.upper() not in ["COSINE", "EUCLIDEAN", "DOT_PRODUCT"]:
+            self.logger.error(f"Invalid distance_measure: {distance_measure}. Must be COSINE, EUCLIDEAN, or DOT_PRODUCT.")
+            raise ValueError(f"Invalid distance_measure: {distance_measure}. Must be COSINE, EUCLIDEAN, or DOT_PRODUCT.")
+        self.distance_measure = distance_measure.upper()
+
+        self.rag_generation_config = GenerationConfig(
+            response_mime_type="text/plain"
+        )
+        self.logger.info(f"RagChatbotAgent initialized with embedding_model: {embedding_model_name}, generation_model: {generation_model_name}, top_k: {top_k}, distance_measure: {self.distance_measure}")
+
+    def get_rag_response(self, question: str) -> str:
+        self.logger.info(f"Received question: {question}")
+
+        try:
+            query_embeddings = self.embedding_model.get_embeddings([question])
+            if not query_embeddings:
+                self.logger.error("Failed to get embeddings for the question.")
+                return "申し訳ありませんが、質問を処理できませんでした。"
+            query_vector = Vector(query_embeddings[0].values)
+            self.logger.debug(f"Query vector generated: {str(query_vector)[:100]}...")
+        except Exception as e:
+            self.logger.error(f"Error generating query embedding: {e}")
+            return "申し訳ありませんが、質問のベクトル化中にエラーが発生しました。"
+
+        try:
+            collection_ref = self.db.collection(self.firestore_collection)
+            nearest_docs_query = collection_ref.find_nearest(
+                vector_field="embedding",
+                query_vector=query_vector,
+                distance_measure=self.distance_measure,
+                limit=self.top_k,
+            )
+            snapshot = nearest_docs_query.get()
+            self.logger.info(f"Found {len(snapshot.documents)} documents from Firestore.")
+        except Exception as e:
+            self.logger.error(f"Error during Firestore vector search: {e}")
+            if "no matching index found" in str(e).lower():
+                self.logger.error("Firestore vector index might not be configured for the 'embedding' field in collection '{self.firestore_collection}'.")
+                return f"関連情報を見つけるためのインデックスがコレクション '{self.firestore_collection}' に設定されていないようです。管理者にご確認ください。"
+            return "申し訳ありませんが、関連情報の検索中にエラーが発生しました。"
+
+        contexts = []
+        if snapshot.documents:
+            for doc in snapshot.documents:
+                doc_data = doc.to_dict()
+                if "text" in doc_data:
+                    contexts.append(str(doc_data["text"])) # Ensure text is string
+                else:
+                    self.logger.warning(f"Document {doc.id} in '{self.firestore_collection}' missing 'text' field.")
+            context_string = "\n---\n".join(contexts)
+            self.logger.debug(f"Context string created: {context_string[:200]}...")
+        else:
+            context_string = "関連する情報は見つかりませんでした。"
+            self.logger.info("No relevant documents found to create context.")
+
+        prompt = f"""以下の提供された情報を参考にして、ユーザーの質問に日本語で回答してください。
+提供された情報に質問への直接的な答えが含まれていない場合は、その旨を正直に伝えてください。憶測で答えないでください。
+
+[提供情報]
+{context_string}
+---
+[ユーザーの質問]
+{question}
+
+[回答]
+"""
+        self.logger.debug(f"Generated prompt for LLM: {prompt[:300]}...")
+
+        try:
+            llm_response = self.model.generate_content(
+                [prompt],
+                generation_config=self.rag_generation_config
+            )
+            answer = llm_response.text
+            self.logger.info(f"LLM generated answer: {answer[:200]}...")
+        except Exception as e:
+            self.logger.error(f"Error generating answer with LLM: {e}")
+            return "申し訳ありませんが、回答の生成中にエラーが発生しました。"
+
+        return answer
+
+if __name__ == '__main__':
+    print("Attempting to initialize RagChatbotAgent for testing...")
+
+    gcp_project_id = os.getenv("GCP_PROJECT")
+    if not gcp_project_id:
+        print("Please set the GCP_PROJECT environment variable for testing.")
+        print("Example: export GCP_PROJECT=\"your-gcp-project-id\"")
+        exit(1)
+    print(f"Using GCP_PROJECT: {gcp_project_id}")
+
+    # Ensure application default credentials are set up
+    # `gcloud auth application-default login`
+    # Or GOOGLE_APPLICATION_CREDENTIALS environment variable points to a service account key file.
+
+    try:
+        agent = RagChatbotAgent(
+            project_id=gcp_project_id, # Explicitly pass project_id
+            firestore_collection="chunks_for_rag_test", # Use a dedicated test collection
+            embedding_model_name="textembedding-gecko@003",
+            generation_model_name="gemini-1.0-pro",
+            top_k=3
+        )
+        print("RagChatbotAgent initialized successfully.")
+
+        # Before running, ensure 'chunks_for_rag_test' collection exists in your Firestore
+        # and has at least one document with 'text' and 'embedding' (Vector) fields.
+        # Also, a vector index must be created for the 'embedding' field in that collection.
+        # Example to add data (run this separately, e.g., in a setup script or Jupyter notebook):
+        # from google.cloud import firestore_v1
+        # from google.cloud.firestore_v1.vector import Vector
+        # from vertexai.language_models import TextEmbeddingModel
+        # db_test = firestore_v1.Client(project=gcp_project_id)
+        # embed_model_test = TextEmbeddingModel.from_pretrained("textembedding-gecko@003")
+        # test_texts = ["これはRAGシステムのテスト用業務内容サンプル1です。", "猫は可愛い動物です。", " Firestoreのベクトル検索は便利です。"]
+        # test_embs_result = embed_model_test.get_embeddings(test_texts)
+        # test_embs = [emb.values for emb in test_embs_result]
+        # coll_test = db_test.collection("chunks_for_rag_test")
+        # for text, emb_val in zip(test_texts, test_embs):
+        #     coll_test.add({"text": text, "embedding": Vector(emb_val), "metadata": {"source": "test_script"}})
+        # print("Test data added to 'chunks_for_rag_test'. Ensure vector index is created via gcloud CLI.")
+        # gcloud firestore indexes composite create --collection-group=chunks_for_rag_test --field-config=vector_field:embedding,mode:FLAT
+
+        test_question = "RAGシステムのテストについて教えてください。"
+        print(f"\nTesting with question: '{test_question}'")
+        response = agent.get_rag_response(test_question)
+        print(f"\nResponse from RAG Agent:\n{response}")
+
+        test_question_no_context = "宇宙の果てはどうなっていますか？"
+        print(f"\nTesting with question (likely no context): '{test_question_no_context}'")
+        response_no_context = agent.get_rag_response(test_question_no_context)
+        print(f"\nResponse from RAG Agent (no context expected):\n{response_no_context}")
+
+    except ValueError as ve:
+        print(f"Configuration Error: {ve}")
+    except Exception as e:
+        print(f"An error occurred during testing: {e}")
+        import traceback
+        traceback.print_exc()

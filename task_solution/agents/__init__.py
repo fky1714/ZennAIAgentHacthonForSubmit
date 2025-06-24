@@ -5,6 +5,7 @@ from .procedure_descriptor.procedure_descriptor import ProcedureDescriptor
 from .report_maker.report_maker import ReportMaker
 from .task_supporter.task_supporter import TaskSupporter, SupportType, SupportInfo
 from .task_supporter.notify_desider import NotifyDesider
+from .rag_chatbot_agent import RagChatbotAgent
 
 __all__ = [
     "ScreenAnalyzer",
@@ -14,4 +15,5 @@ __all__ = [
     "SupportType",
     "SupportInfo",
     "NotifyDesider",
+    "RagChatbotAgent",
 ]
