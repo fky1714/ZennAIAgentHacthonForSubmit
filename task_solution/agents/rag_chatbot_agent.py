@@ -3,10 +3,10 @@
 import os
 from google.cloud import firestore_v1
 from google.cloud.firestore_v1.vector import Vector
-from google.cloud.firestore_v1.base_vector_query import DistanceMeasure as FirestoreDistanceMeasure # Corrected Import
-# For text generation, we can use the model from BaseVertexAI or TextGenerationModel directly
-from vertexai.preview.language_models import TextEmbeddingModel, TextEmbeddingInput # Using preview
-from vertexai.generative_models import GenerativeModel, Part, GenerationConfig # For Gemini (used in BaseVertexAI)
+from google.cloud.firestore_v1.base_vector_query import DistanceMeasure as FirestoreDistanceMeasure
+from vertexai.language_models import TextEmbeddingModel # Using stable SDK
+# TextEmbeddingInput may not be needed for gecko, or if needed, import from stable
+from vertexai.generative_models import GenerativeModel, Part, GenerationConfig
 
 from .vertex_ai.base_vertex_ai import BaseVertexAI
 from utils.logger import Logger # Assuming a logger utility exists
@@ -18,7 +18,7 @@ class RagChatbotAgent(BaseVertexAI):
     def __init__(
         self,
         firestore_collection: str = "rag_chunks_all",
-        embedding_model_name: str = "gemini-embedding-001", # Using gemini-embedding-001
+        embedding_model_name: str = "textembedding-gecko@003", # Reverted to gecko
         generation_model_name: str = "gemini-1.0-pro",
         project_id: str = None,
         location: str = None,
@@ -71,12 +71,8 @@ class RagChatbotAgent(BaseVertexAI):
         self.logger.info(f"Received question: {question}")
 
         try:
-            query_embedding_input = TextEmbeddingInput(
-                text=question,
-                task_type="RETRIEVAL_QUERY"  # Specify task_type for RAG query, title removed
-            )
-            # Ensure self.embedding_model is initialized correctly in __init__
-            query_embeddings_response = self.embedding_model.get_embeddings([query_embedding_input])
+            # For gecko, pass list of strings directly
+            query_embeddings_response = self.embedding_model.get_embeddings([question])
 
             if not query_embeddings_response or \
                not hasattr(query_embeddings_response[0], 'values') or \
@@ -86,18 +82,15 @@ class RagChatbotAgent(BaseVertexAI):
 
             query_vector_values = query_embeddings_response[0].values
 
-            # Add detailed logging for query vector dimension
             query_emb_len = len(query_vector_values) if hasattr(query_vector_values, '__len__') else -1
             self.logger.info(f"Query embedding details: type={type(query_vector_values)}, length={query_emb_len}, first_3_values={str(query_vector_values[:3]) if query_emb_len > 0 else 'N/A'}")
-            if query_emb_len != 768: # Expected dimension for gemini-embedding-001
-                 self.logger.error(f"CRITICAL: Query embedding dimension is {query_emb_len}, expected 768 for {self.embedding_model.name if hasattr(self.embedding_model, 'name') else 'gemini-embedding-001'}.")
-            # else:
-            #    self.logger.info(f"Query embedding dimension is {query_emb_len}, which is expected.")
+            # For gecko, expected dimension is typically 768.
+            if query_emb_len != 768:
+                 self.logger.warning(f"Query embedding dimension is {query_emb_len}, expected 768 for {self.embedding_model.name if hasattr(self.embedding_model, 'name') else 'textembedding-gecko@003'}.")
 
             query_vector = Vector(query_vector_values)
-            # self.logger.debug(f"Query vector generated (first 3 values): {str(query_vector_values[:3])}...") # Covered by logger.info above
         except Exception as e:
-            self.logger.error(f"Error generating query embedding: {e}", exc_info=True) # Added exc_info for more details
+            self.logger.error(f"Error generating query embedding: {e}", exc_info=True)
             return "申し訳ありませんが、質問のベクトル化中にエラーが発生しました。"
 
         try:
