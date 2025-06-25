@@ -163,8 +163,6 @@ if __name__ == '__main__':
         # Agent uses default "rag_chunks_all" and "gemini-embedding-001" from its __init__
         agent = RagChatbotAgent(
             project_id=gcp_project_id,
-            # firestore_collection="rag_chunks_all", # Default, or override if needed for testing
-            # embedding_model_name="gemini-embedding-001", # Default
             top_k=3
         )
         print("RagChatbotAgent initialized successfully.")
@@ -174,18 +172,26 @@ if __name__ == '__main__':
         # 2. Ensure `create_firestore_index.sh` has been run and the index for "rag_chunks_all" is active.
         # 3. Set GCP_PROJECT environment variable.
 
-        # Example questions (replace with questions relevant to your actual data in "rag_chunks_all")
-        test_question_relevant = "AIシステム「Sofia」紹介動画の作成について教えて"
-        # Assuming "AIシステム「Sofia」紹介動画の作成" was a report title processed by prepare_rag_data.py
+        # --- Test Question 1: Firestoreのデータに関連する具体的な質問 ---
+        # 例: 実際にprepare_rag_data.pyで処理したレポートのタイトルや手順名に関する質問
+        #    以下の質問は、ログにあったレポートタイトルを参考にしています。
+        #    実際に投入したデータに合わせて調整してください。
+        question1 = "AIシステム「Sofia」紹介動画の作成について、概要を教えてください。"
+        print(f"\nTesting with question 1: '{question1}'")
+        response1 = agent.get_rag_response(question1)
+        print(f"\nResponse 1:\n{response1}")
 
-        print(f"\nTesting with relevant question: '{test_question_relevant}'")
-        response_relevant = agent.get_rag_response(test_question_relevant)
-        print(f"\nResponse from RAG Agent (relevant):\n{response_relevant}")
+        # --- Test Question 2: Firestoreのデータに部分的に関連するかもしれない曖昧な質問 ---
+        question2 = "デモ動画の作成に関する一般的な注意点は何ですか？" # Sofia以外のデモ動画の可能性も
+        print(f"\nTesting with question 2: '{question2}'")
+        response2 = agent.get_rag_response(question2)
+        print(f"\nResponse 2:\n{response2}")
 
-        test_question_irrelevant = "今日の東京の天気は？" # General knowledge, likely not in Firestore
-        print(f"\nTesting with question (likely no context): '{test_question_no_context}'")
-        response_no_context = agent.get_rag_response(test_question_no_context)
-        print(f"\nResponse from RAG Agent (no context expected):\n{response_no_context}")
+        # --- Test Question 3: Firestoreのデータに全く関連しない質問 ---
+        question3 = "日本で一番高い山は何ですか？"
+        print(f"\nTesting with question 3: '{question3}'")
+        response3 = agent.get_rag_response(question3)
+        print(f"\nResponse 3:\n{response3}")
 
     except ValueError as ve:
         print(f"Configuration Error: {ve}")
