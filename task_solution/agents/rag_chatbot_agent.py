@@ -5,8 +5,7 @@ import vertexai # Ensure vertexai is imported for init
 from google.cloud import firestore_v1
 from google.cloud.firestore_v1.vector import Vector
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure as FirestoreDistanceMeasure
-from vertexai.language_models import TextEmbeddingModel # Using stable SDK
-# TextEmbeddingInput may not be needed for gecko, or if needed, import from stable
+from vertexai.preview.language_models import TextEmbeddingModel, TextEmbeddingInput # Using preview
 from vertexai.generative_models import GenerativeModel, Part, GenerationConfig
 
 from .vertex_ai.base_vertex_ai import BaseVertexAI
@@ -19,7 +18,7 @@ class RagChatbotAgent(BaseVertexAI):
     def __init__(
         self,
         firestore_collection: str = "rag_chunks_all",
-        embedding_model_name: str = "textembedding-gecko@003", # Reverted to gecko
+        embedding_model_name: str = "gemini-embedding-001", # Back to gemini-embedding-001
         generation_model_name: str = "gemini-1.0-pro",
         project_id: str = None,
         location: str = None,
@@ -79,8 +78,12 @@ class RagChatbotAgent(BaseVertexAI):
         self.logger.info(f"Received question: {question}")
 
         try:
-            # For gecko, pass list of strings directly
-            query_embeddings_response = self.embedding_model.get_embeddings([question])
+            # Using TextEmbeddingInput for gemini-embedding-001
+            query_embedding_input = TextEmbeddingInput(
+                text=question,
+                task_type="RETRIEVAL_QUERY"  # title removed as per previous error
+            )
+            query_embeddings_response = self.embedding_model.get_embeddings([query_embedding_input])
 
             if not query_embeddings_response or \
                not hasattr(query_embeddings_response[0], 'values') or \
@@ -92,9 +95,8 @@ class RagChatbotAgent(BaseVertexAI):
 
             query_emb_len = len(query_vector_values) if hasattr(query_vector_values, '__len__') else -1
             self.logger.info(f"Query embedding details: type={type(query_vector_values)}, length={query_emb_len}, first_3_values={str(query_vector_values[:3]) if query_emb_len > 0 else 'N/A'}")
-            # For gecko, expected dimension is typically 768.
-            if query_emb_len != 768:
-                 self.logger.warning(f"Query embedding dimension is {query_emb_len}, expected 768 for {self.embedding_model.name if hasattr(self.embedding_model, 'name') else 'textembedding-gecko@003'}.")
+            if query_emb_len != 768: # Expected dimension for gemini-embedding-001
+                 self.logger.error(f"CRITICAL: Query embedding dimension is {query_emb_len}, expected 768 for {self.embedding_model.name if hasattr(self.embedding_model, 'name') else 'gemini-embedding-001'}.")
 
             query_vector = Vector(query_vector_values)
         except Exception as e:

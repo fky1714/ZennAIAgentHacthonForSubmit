@@ -28,7 +28,7 @@ if os.path.join(project_root, "task_solution") not in sys.path: # Ensure task_so
 
 from google.cloud import firestore
 from google.cloud.firestore_v1.vector import Vector
-from vertexai.language_models import TextEmbeddingModel # Using stable SDK
+from vertexai.preview.language_models import TextEmbeddingModel, TextEmbeddingInput # Using preview
 from langchain.text_splitter import MarkdownTextSplitter
 import vertexai # For vertexai.init()
 
@@ -38,7 +38,7 @@ from task_solution.utils.logger import Logger
 
 # --- Configuration ---
 TARGET_RAG_COLLECTION_NAME = "rag_chunks_all"
-EMBEDDING_MODEL_NAME = "textembedding-gecko@003"  # Reverted to gecko
+EMBEDDING_MODEL_NAME = "gemini-embedding-001"  # Back to gemini-embedding-001
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 100
 FIRESTORE_BATCH_SIZE = 400
@@ -149,8 +149,13 @@ def prepare_and_embed_chunks(text_content: str, splitter: MarkdownTextSplitter, 
     for i, chunk_text in enumerate(text_chunks):
         try:
             # logger.debug(f"  Embedding chunk {i+1}/{len(text_chunks)} for '{source_text_identifier}'...")
-            # For gecko, pass list of strings directly
-            embedding_response = embedding_model.get_embeddings([chunk_text])
+            # Create TextEmbeddingInput object for gemini-embedding-001
+            embedding_input = TextEmbeddingInput(
+                text=chunk_text,
+                task_type="RETRIEVAL_DOCUMENT",
+                title=metadata.get("title")
+            )
+            embedding_response = embedding_model.get_embeddings([embedding_input])
 
             if embedding_response and hasattr(embedding_response[0], 'values') and embedding_response[0].values:
                 emb_val = embedding_response[0].values
