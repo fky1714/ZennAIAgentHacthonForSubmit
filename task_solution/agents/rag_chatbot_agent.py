@@ -3,6 +3,7 @@
 import os
 from google.cloud import firestore_v1
 from google.cloud.firestore_v1.vector import Vector
+from google.cloud.firestore_v1.types import VectorQuery # Added for DistanceMeasure Enum
 # For text generation, we can use the model from BaseVertexAI or TextGenerationModel directly
 from vertexai.preview.language_models import TextEmbeddingModel, TextEmbeddingInput # Using preview
 from vertexai.generative_models import GenerativeModel, Part, GenerationConfig # For Gemini (used in BaseVertexAI)
@@ -48,15 +49,23 @@ class RagChatbotAgent(BaseVertexAI):
             raise
 
         self.top_k = top_k
-        if distance_measure.upper() not in ["COSINE", "EUCLIDEAN", "DOT_PRODUCT"]:
-            self.logger.error(f"Invalid distance_measure: {distance_measure}. Must be COSINE, EUCLIDEAN, or DOT_PRODUCT.")
+
+        # Convert distance_measure string to Enum
+        dm_upper = distance_measure.upper()
+        if dm_upper == "COSINE":
+            self.distance_measure_enum = VectorQuery.DistanceMeasure.COSINE
+        elif dm_upper == "EUCLIDEAN":
+            self.distance_measure_enum = VectorQuery.DistanceMeasure.EUCLIDEAN
+        elif dm_upper == "DOT_PRODUCT":
+            self.distance_measure_enum = VectorQuery.DistanceMeasure.DOT_PRODUCT
+        else:
+            self.logger.error(f"Invalid distance_measure string: {distance_measure}. Must be COSINE, EUCLIDEAN, or DOT_PRODUCT.")
             raise ValueError(f"Invalid distance_measure: {distance_measure}. Must be COSINE, EUCLIDEAN, or DOT_PRODUCT.")
-        self.distance_measure = distance_measure.upper()
 
         self.rag_generation_config = GenerationConfig(
             response_mime_type="text/plain"
         )
-        self.logger.info(f"RagChatbotAgent initialized with embedding_model: {embedding_model_name}, generation_model: {generation_model_name}, top_k: {top_k}, distance_measure: {self.distance_measure}")
+        self.logger.info(f"RagChatbotAgent initialized with embedding_model: {embedding_model_name}, generation_model: {generation_model_name}, top_k: {top_k}, distance_measure: {self.distance_measure_enum.name}")
 
     def get_rag_response(self, question: str) -> str:
         self.logger.info(f"Received question: {question}")
@@ -93,7 +102,7 @@ class RagChatbotAgent(BaseVertexAI):
             nearest_docs_query = collection_ref.find_nearest(
                 vector_field="embedding",
                 query_vector=query_vector,
-                distance_measure=self.distance_measure,
+                distance_measure=self.distance_measure_enum, # Use Enum here
                 limit=self.top_k,
             )
             snapshot = nearest_docs_query.get()
