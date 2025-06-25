@@ -3,9 +3,8 @@
 import os
 from google.cloud import firestore_v1
 from google.cloud.firestore_v1.vector import Vector
-from vertexai.language_models import TextEmbeddingModel # For embedding
 # For text generation, we can use the model from BaseVertexAI or TextGenerationModel directly
-from vertexai.language_models import TextEmbeddingInput # Added TextEmbeddingInput
+from vertexai.preview.language_models import TextEmbeddingModel, TextEmbeddingInput # Using preview
 from vertexai.generative_models import GenerativeModel, Part, GenerationConfig # For Gemini (used in BaseVertexAI)
 
 from .vertex_ai.base_vertex_ai import BaseVertexAI

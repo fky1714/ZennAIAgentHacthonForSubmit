@@ -28,7 +28,7 @@ if os.path.join(project_root, "task_solution") not in sys.path: # Ensure task_so
 
 from google.cloud import firestore
 from google.cloud.firestore_v1.vector import Vector
-from vertexai.language_models import TextEmbeddingModel, TextEmbeddingInput # Added TextEmbeddingInput
+from vertexai.preview.language_models import TextEmbeddingModel, TextEmbeddingInput # Using preview
 from langchain.text_splitter import MarkdownTextSplitter
 import vertexai # For vertexai.init()
 
