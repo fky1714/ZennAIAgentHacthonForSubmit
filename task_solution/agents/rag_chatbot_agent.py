@@ -86,13 +86,16 @@ class RagChatbotAgent(BaseVertexAI):
 
             query_vector_values = query_embeddings_response[0].values
 
-            # Optional: Check dimension if you know what gemini-embedding-001 should return (e.g., 768)
-            # expected_dimension = 768
-            # if len(query_vector_values) != expected_dimension:
-            #     self.logger.warning(f"Query embedding dimension is {len(query_vector_values)}, expected {expected_dimension} for {self.embedding_model._model_id_component()}. Proceeding, but this might indicate an issue.")
+            # Add detailed logging for query vector dimension
+            query_emb_len = len(query_vector_values) if hasattr(query_vector_values, '__len__') else -1
+            self.logger.info(f"Query embedding details: type={type(query_vector_values)}, length={query_emb_len}, first_3_values={str(query_vector_values[:3]) if query_emb_len > 0 else 'N/A'}")
+            if query_emb_len != 768: # Expected dimension for gemini-embedding-001
+                 self.logger.error(f"CRITICAL: Query embedding dimension is {query_emb_len}, expected 768 for {self.embedding_model.name if hasattr(self.embedding_model, 'name') else 'gemini-embedding-001'}.")
+            # else:
+            #    self.logger.info(f"Query embedding dimension is {query_emb_len}, which is expected.")
 
             query_vector = Vector(query_vector_values)
-            self.logger.debug(f"Query vector generated (first 3 values): {str(query_vector_values[:3])}...")
+            # self.logger.debug(f"Query vector generated (first 3 values): {str(query_vector_values[:3])}...") # Covered by logger.info above
         except Exception as e:
             self.logger.error(f"Error generating query embedding: {e}", exc_info=True) # Added exc_info for more details
             return "申し訳ありませんが、質問のベクトル化中にエラーが発生しました。"
