@@ -3,7 +3,7 @@
 import os
 from google.cloud import firestore_v1
 from google.cloud.firestore_v1.vector import Vector
-from google.cloud.firestore_v1.types import VectorQuery # Added for DistanceMeasure Enum
+from google.cloud.firestore_v1.base_vector_query import DistanceMeasure as FirestoreDistanceMeasure # Corrected Import
 # For text generation, we can use the model from BaseVertexAI or TextGenerationModel directly
 from vertexai.preview.language_models import TextEmbeddingModel, TextEmbeddingInput # Using preview
 from vertexai.generative_models import GenerativeModel, Part, GenerationConfig # For Gemini (used in BaseVertexAI)
@@ -53,11 +53,11 @@ class RagChatbotAgent(BaseVertexAI):
         # Convert distance_measure string to Enum
         dm_upper = distance_measure.upper()
         if dm_upper == "COSINE":
-            self.distance_measure_enum = VectorQuery.DistanceMeasure.COSINE
+            self.distance_measure_enum = FirestoreDistanceMeasure.COSINE
         elif dm_upper == "EUCLIDEAN":
-            self.distance_measure_enum = VectorQuery.DistanceMeasure.EUCLIDEAN
+            self.distance_measure_enum = FirestoreDistanceMeasure.EUCLIDEAN
         elif dm_upper == "DOT_PRODUCT":
-            self.distance_measure_enum = VectorQuery.DistanceMeasure.DOT_PRODUCT
+            self.distance_measure_enum = FirestoreDistanceMeasure.DOT_PRODUCT
         else:
             self.logger.error(f"Invalid distance_measure string: {distance_measure}. Must be COSINE, EUCLIDEAN, or DOT_PRODUCT.")
             raise ValueError(f"Invalid distance_measure: {distance_measure}. Must be COSINE, EUCLIDEAN, or DOT_PRODUCT.")
