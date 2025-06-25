@@ -1,6 +1,7 @@
 # task_solution/agents/rag_chatbot_agent.py
 
 import os
+import vertexai # Ensure vertexai is imported for init
 from google.cloud import firestore_v1
 from google.cloud.firestore_v1.vector import Vector
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure as FirestoreDistanceMeasure
@@ -25,27 +26,34 @@ class RagChatbotAgent(BaseVertexAI):
         top_k: int = 5,
         distance_measure: str = "COSINE", # COSINE, EUCLIDEAN, DOT_PRODUCT
     ):
-        super().__init__(model_name=generation_model_name) # Initialize BaseVertexAI with the generation model
+        super().__init__(model_name=generation_model_name)
         self.logger = Logger(name=self.__class__.__name__).get_logger()
 
-        if project_id is None:
-            project_id = os.getenv("GCP_PROJECT")
-        if location is None:
-            location = os.getenv("GCP_LOCATION", "us-central1") # Default location for Vertex AI
+        _project_id = project_id if project_id else os.getenv("GCP_PROJECT")
+        _location = location if location else os.getenv("GCP_LOCATION", "us-central1")
 
-        if not project_id:
-            self.logger.error("GCP_PROJECT environment variable or project_id parameter must be set.")
+        if not _project_id:
+            self.logger.error("GCP_PROJECT environment variable or project_id parameter must be set for RagChatbotAgent.")
             raise ValueError("GCP_PROJECT environment variable or project_id parameter must be set.")
 
-        self.db = firestore_v1.Client(project=project_id)
+        try:
+            self.logger.info(f"Explicitly initializing Vertex AI for RagChatbotAgent with project:{_project_id}, location:{_location}")
+            vertexai.init(project=_project_id, location=_location)
+        except Exception as e:
+            self.logger.error(f"Error during explicit vertexai.init() in RagChatbotAgent: {e}", exc_info=True)
+            # Depending on strictness, might raise e here. If init in super() is enough, this might be optional.
+            # However, to ensure model loading context is right, it's safer to have it succeed.
+            raise  # Re-raise if explicit init fails, as it's critical for this strategy
+
+        self.db = firestore_v1.Client(project=_project_id)
         self.firestore_collection = firestore_collection
-        self.logger.info(f"Firestore client initialized for project: {project_id}, collection: {self.firestore_collection}")
+        self.logger.info(f"Firestore client initialized for project: {_project_id}, collection: {self.firestore_collection}")
 
         try:
             self.embedding_model = TextEmbeddingModel.from_pretrained(embedding_model_name)
             self.logger.info(f"TextEmbeddingModel '{embedding_model_name}' initialized.")
         except Exception as e:
-            self.logger.error(f"Failed to initialize TextEmbeddingModel '{embedding_model_name}': {e}")
+            self.logger.error(f"Failed to initialize TextEmbeddingModel '{embedding_model_name}': {e}", exc_info=True)
             raise
 
         self.top_k = top_k
