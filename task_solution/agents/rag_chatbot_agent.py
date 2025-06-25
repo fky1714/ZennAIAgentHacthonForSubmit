@@ -73,8 +73,7 @@ class RagChatbotAgent(BaseVertexAI):
         try:
             query_embedding_input = TextEmbeddingInput(
                 text=question,
-                task_type="RETRIEVAL_QUERY",  # Specify task_type for RAG query
-                title="dummy_query_title"     # Added dummy title
+                task_type="RETRIEVAL_QUERY"  # Specify task_type for RAG query, title removed
             )
             # Ensure self.embedding_model is initialized correctly in __init__
             query_embeddings_response = self.embedding_model.get_embeddings([query_embedding_input])
