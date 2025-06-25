@@ -151,11 +151,23 @@ def prepare_and_embed_chunks(text_content: str, splitter: MarkdownTextSplitter, 
             # logger.debug(f"  Embedding chunk {i+1}/{len(text_chunks)} for '{source_text_identifier}'...")
             embedding_response = embedding_model.get_embeddings([chunk_text]) # Pass as a list
 
-            if embedding_response and embedding_response[0].values:
+            if embedding_response and hasattr(embedding_response[0], 'values') and embedding_response[0].values:
                 emb_val = embedding_response[0].values
-                # Firestoreの次元数制限チェックをここで行うこともできる
-                # if len(emb_val) > 2048:
-                #    logger.error(f"  Embedding for chunk {i+1} of '{source_text_identifier}' has dimension {len(emb_val)}, which exceeds Firestore limit of 2048.")
+
+                # Log the details of the embedding vector
+                emb_len = len(emb_val) if hasattr(emb_val, '__len__') else -1
+                emb_type = type(emb_val)
+                first_few_vals = str(emb_val[:3]) if emb_len > 0 and isinstance(emb_val, list) else 'N/A'
+                # logger.info(f"  Embedding for chunk {i+1}: type={emb_type}, length={emb_len}, first_values={first_few_vals}")
+
+                if emb_len != 768: # Explicitly check for gemini-embedding-001's expected dimension
+                    logger.error(f"  CRITICAL: Embedding for chunk {i+1} of '{source_text_identifier}' has unexpected dimension {emb_len}. Expected 768 for {EMBEDDING_MODEL_NAME}. Values (first 3): {first_few_vals}")
+                    # Potentially skip this chunk or raise an error to halt if unexpected dimension is critical
+                    # For now, we'll log and let it try to write, as Firestore should be the one complaining if > 2048
+
+                # Firestoreの次元数制限チェックはFirestore SDK側で行われるので、ここではログのみ
+                # if emb_len > 2048:
+                #    logger.error(f"  Embedding for chunk {i+1} of '{source_text_identifier}' has dimension {emb_len}, which exceeds Firestore limit of 2048.")
                 #    continue # スキップ
 
                 chunk_doc = {
@@ -170,7 +182,7 @@ def prepare_and_embed_chunks(text_content: str, splitter: MarkdownTextSplitter, 
                 chunks_with_embeddings.append(chunk_doc)
                 successful_embeddings_count +=1
             else:
-                logger.error(f"  Failed to get embedding for chunk {i+1} of '{source_text_identifier}'. Response was: {embedding_response}")
+                logger.error(f"  Failed to get embedding (or 'values' attribute missing/empty) for chunk {i+1} of '{source_text_identifier}'. Response object: {str(embedding_response)[:200]}")
         except Exception as e:
             logger.error(f"  Exception while embedding chunk {i+1} of '{source_text_identifier}': {e}", exc_info=True)
             # エラーが発生したチャンクはスキップ
