@@ -5,7 +5,7 @@ from google.cloud import firestore_v1
 from google.cloud.firestore_v1.vector import Vector
 from vertexai.language_models import TextEmbeddingModel # For embedding
 # For text generation, we can use the model from BaseVertexAI or TextGenerationModel directly
-# from vertexai.language_models import TextGenerationModel
+from vertexai.language_models import TextEmbeddingInput # Added TextEmbeddingInput
 from vertexai.generative_models import GenerativeModel, Part, GenerationConfig # For Gemini (used in BaseVertexAI)
 
 from .vertex_ai.base_vertex_ai import BaseVertexAI
@@ -17,8 +17,8 @@ from utils.logger import Logger # Assuming a logger utility exists
 class RagChatbotAgent(BaseVertexAI):
     def __init__(
         self,
-        firestore_collection: str = "rag_chunks_all", # Default changed to match prepare_rag_data.py
-        embedding_model_name: str = "gemini-embedding-001", # Updated model name
+        firestore_collection: str = "rag_chunks_all",
+        embedding_model_name: str = "gemini-embedding-001", # Using gemini-embedding-001
         generation_model_name: str = "gemini-1.0-pro",
         project_id: str = None,
         location: str = None,
@@ -63,14 +63,30 @@ class RagChatbotAgent(BaseVertexAI):
         self.logger.info(f"Received question: {question}")
 
         try:
-            query_embeddings = self.embedding_model.get_embeddings([question])
-            if not query_embeddings:
-                self.logger.error("Failed to get embeddings for the question.")
+            query_embedding_input = TextEmbeddingInput(
+                text=question,
+                task_type="RETRIEVAL_QUERY"  # Specify task_type for RAG query
+            )
+            # Ensure self.embedding_model is initialized correctly in __init__
+            query_embeddings_response = self.embedding_model.get_embeddings([query_embedding_input])
+
+            if not query_embeddings_response or \
+               not hasattr(query_embeddings_response[0], 'values') or \
+               not query_embeddings_response[0].values:
+                self.logger.error(f"Failed to get embeddings for the question. Response: {str(query_embeddings_response)[:200]}")
                 return "申し訳ありませんが、質問を処理できませんでした。"
-            query_vector = Vector(query_embeddings[0].values)
-            self.logger.debug(f"Query vector generated: {str(query_vector)[:100]}...")
+
+            query_vector_values = query_embeddings_response[0].values
+
+            # Optional: Check dimension if you know what gemini-embedding-001 should return (e.g., 768)
+            # expected_dimension = 768
+            # if len(query_vector_values) != expected_dimension:
+            #     self.logger.warning(f"Query embedding dimension is {len(query_vector_values)}, expected {expected_dimension} for {self.embedding_model._model_id_component()}. Proceeding, but this might indicate an issue.")
+
+            query_vector = Vector(query_vector_values)
+            self.logger.debug(f"Query vector generated (first 3 values): {str(query_vector_values[:3])}...")
         except Exception as e:
-            self.logger.error(f"Error generating query embedding: {e}")
+            self.logger.error(f"Error generating query embedding: {e}", exc_info=True) # Added exc_info for more details
             return "申し訳ありませんが、質問のベクトル化中にエラーが発生しました。"
 
         try:
@@ -145,39 +161,29 @@ if __name__ == '__main__':
     # Or GOOGLE_APPLICATION_CREDENTIALS environment variable points to a service account key file.
 
     try:
+        # Agent uses default "rag_chunks_all" and "gemini-embedding-001" from its __init__
         agent = RagChatbotAgent(
-            project_id=gcp_project_id, # Explicitly pass project_id
-            firestore_collection="chunks_for_rag_test", # Use a dedicated test collection
-            embedding_model_name="textembedding-gecko@003",
-            generation_model_name="gemini-1.0-pro",
+            project_id=gcp_project_id,
+            # firestore_collection="rag_chunks_all", # Default, or override if needed for testing
+            # embedding_model_name="gemini-embedding-001", # Default
             top_k=3
         )
         print("RagChatbotAgent initialized successfully.")
 
-        # Before running, ensure 'chunks_for_rag_test' collection exists in your Firestore
-        # and has at least one document with 'text' and 'embedding' (Vector) fields.
-        # Also, a vector index must be created for the 'embedding' field in that collection.
-        # Example to add data (run this separately, e.g., in a setup script or Jupyter notebook):
-        # from google.cloud import firestore_v1
-        # from google.cloud.firestore_v1.vector import Vector
-        # from vertexai.language_models import TextEmbeddingModel
-        # db_test = firestore_v1.Client(project=gcp_project_id)
-        # embed_model_test = TextEmbeddingModel.from_pretrained("textembedding-gecko@003")
-        # test_texts = ["これはRAGシステムのテスト用業務内容サンプル1です。", "猫は可愛い動物です。", " Firestoreのベクトル検索は便利です。"]
-        # test_embs_result = embed_model_test.get_embeddings(test_texts)
-        # test_embs = [emb.values for emb in test_embs_result]
-        # coll_test = db_test.collection("chunks_for_rag_test")
-        # for text, emb_val in zip(test_texts, test_embs):
-        #     coll_test.add({"text": text, "embedding": Vector(emb_val), "metadata": {"source": "test_script"}})
-        # print("Test data added to 'chunks_for_rag_test'. Ensure vector index is created via gcloud CLI.")
-        # gcloud firestore indexes composite create --collection-group=chunks_for_rag_test --field-config=vector_field:embedding,mode:FLAT
+        # Before running this test block:
+        # 1. Ensure `prepare_rag_data.py` has been run for some UID(s) to populate "rag_chunks_all".
+        # 2. Ensure `create_firestore_index.sh` has been run and the index for "rag_chunks_all" is active.
+        # 3. Set GCP_PROJECT environment variable.
 
-        test_question = "RAGシステムのテストについて教えてください。"
-        print(f"\nTesting with question: '{test_question}'")
-        response = agent.get_rag_response(test_question)
-        print(f"\nResponse from RAG Agent:\n{response}")
+        # Example questions (replace with questions relevant to your actual data in "rag_chunks_all")
+        test_question_relevant = "AIシステム「Sofia」紹介動画の作成について教えて"
+        # Assuming "AIシステム「Sofia」紹介動画の作成" was a report title processed by prepare_rag_data.py
 
-        test_question_no_context = "宇宙の果てはどうなっていますか？"
+        print(f"\nTesting with relevant question: '{test_question_relevant}'")
+        response_relevant = agent.get_rag_response(test_question_relevant)
+        print(f"\nResponse from RAG Agent (relevant):\n{response_relevant}")
+
+        test_question_irrelevant = "今日の東京の天気は？" # General knowledge, likely not in Firestore
         print(f"\nTesting with question (likely no context): '{test_question_no_context}'")
         response_no_context = agent.get_rag_response(test_question_no_context)
         print(f"\nResponse from RAG Agent (no context expected):\n{response_no_context}")
