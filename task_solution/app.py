@@ -13,7 +13,6 @@ from services import (
     make_procedure_from_mp4,
     generate_notification_message,
 )
-from agents.vertex_ai.chatbot_agent import ChatbotAgent # ChatbotAgent をインポート
 
 # Google認証用
 from google.oauth2 import id_token
@@ -23,15 +22,12 @@ from google.auth.transport import requests as grequests
 from utils.logger import Logger
 from services.firestore_service import firestore_service
 
-# app = Flask(__name__) #  この行をコメントアウトまたは削除
-# app.secret_key = "ThisIsHelloween" #  この行をコメントアウトまたは削除
+app = Flask(__name__)
+app.secret_key = "ThisIsHelloween"
 logger = Logger(name="app").get_logger()
 
 # Load environment variables from .env file
 load_dotenv()
-
-app = Flask(__name__) #  Moved app initialization to top level
-app.secret_key = "ThisIsHelloween"
 
 # Set Google Cloud credentials
 env_gac = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
@@ -539,90 +535,6 @@ def upload_video():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     logger.info(f"Flaskアプリ起動 on port {port}")
-    # app.run(host="0.0.0.0", port=port, debug=True) # This line is now the sole app.run at the end of the file
+    app.run(host="0.0.0.0", port=port)
 
-# Chatbot endpoint
-@app.route("/chat", methods=["POST"])
-def chat():
-    try:
-        logger.info("/chat endpoint called")
-        uid = get_effective_uid()
-        logger.info(f"/chat リクエスト受信: uid={uid}")
-        data = request.json
-        user_message = data.get("message")
-
-        if not user_message:
-            logger.warning("メッセージがありません")
-            return jsonify({"status": "error", "message": "メッセージがありません"}), 400
-
-        chatbot = ChatbotAgent()
-        bot_reply = chatbot.generate_response(user_message)
-
-        logger.info(f"Bot応答: {bot_reply}")
-        return jsonify({"status": "success", "reply": bot_reply})
-
-    except Exception as e:
-        logger.error(f"チャット処理エラー: {str(e)}")
-        logger.error(traceback.format_exc())
-        return jsonify({"status": "error", "message": "チャット処理中にエラーが発生しました。"}), 500
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    logger.info(f"Flaskアプリ起動 on port {port}")
-    app.run(host="0.0.0.0", port=port, debug=True) # This is the single, correct app.run()
-
-    # Register all routes within this block if app is defined here
-    # This is a simplified example; you'd need to move ALL @app.route decorators
-    # and their functions here, or use a function to register them with `app`.
-
-    @app.route("/")
-    def index_moved(): # Function name changed to avoid conflict if you run this multiple times
-        logger.info("index.htmlリクエスト受信 (moved)")
-        return app.send_static_file("index.html")
-
-    @app.route("/test_route", methods=["GET"])
-    def test_route_moved(): # Function name changed
-        logger.info("/test_route called (moved)")
-        return jsonify({"message": "Test route is working (moved)"})
-
-    # Original /chat endpoint - ensure it's defined *after* app is created
-    # For this test, we'll redefine a simplified version here.
-    # IMPORTANT: This will overwrite the global `chat` function if not careful.
-    # For a real fix, you'd move the original chat function here or register it.
-    @app.route("/chat", methods=["POST"])
-    def chat_moved(): # Function name changed
-        try:
-            logger.info("/chat endpoint called (moved)")
-            # uid = get_effective_uid() # This would need session to be set up on this app instance
-            data = request.json
-            user_message = data.get("message")
-            if not user_message:
-                return jsonify({"status": "error", "message": "メッセージがありません"}), 400
-            # chatbot = ChatbotAgent()
-            # bot_reply = chatbot.generate_response(user_message)
-            bot_reply = f"Echo from moved: {user_message}" # Simplified for test
-            return jsonify({"status": "success", "reply": bot_reply})
-        except Exception as e:
-            logger.error(f"チャット処理エラー (moved): {str(e)}")
-            logger.error(traceback.format_exc())
-            return jsonify({"status": "error", "message": "チャット処理中にエラーが発生しました。"}), 500
-
-    # IMPORTANT: You would need to move or re-register ALL your other routes here as well.
-    # For example:
-    # app.add_url_rule('/google_login', view_func=google_login, methods=['POST'])
-    # This requires all your view functions (like google_login, record_frame, etc.)
-    # to be accessible here. Due to the complexity of moving all routes,
-    # this example only redefines a few for testing the concept.
-    # A better long-term solution if this works is to wrap route registration
-    # in a function:
-    # def register_routes(current_app):
-    #     current_app.route(...)(original_index_function)
-    #     current_app.route(...)(original_chat_function)
-    #     # etc.
-    # and then call register_routes(app) here.
-
-    # For now, we are only testing with the routes redefined above.
-
-    # port = int(os.environ.get("PORT", 8080)) # Commented out the second port variable
-    # logger.info(f"Flaskアプリ起動 on port {port} (app defined in main)") # Commented out the second logger
-    # app.run(host="0.0.0.0", port=port, debug=True) # Commented out the second app.run
+# Removed duplicate block

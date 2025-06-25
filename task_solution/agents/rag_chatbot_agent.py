@@ -17,9 +17,9 @@ from utils.logger import Logger # Assuming a logger utility exists
 class RagChatbotAgent(BaseVertexAI):
     def __init__(
         self,
-        firestore_collection: str = "chunks",
-        embedding_model_name: str = "textembedding-gecko@003", # Or another suitable model
-        generation_model_name: str = "gemini-1.0-pro", # Or another suitable model from BaseVertexAI
+        firestore_collection: str = "rag_chunks_all", # Default changed to match prepare_rag_data.py
+        embedding_model_name: str = "gemini-embedding-001", # Updated model name
+        generation_model_name: str = "gemini-1.0-pro",
         project_id: str = None,
         location: str = None,
         top_k: int = 5,

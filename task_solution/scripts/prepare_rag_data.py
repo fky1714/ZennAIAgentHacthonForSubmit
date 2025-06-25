@@ -38,7 +38,7 @@ from task_solution.utils.logger import Logger
 
 # --- Configuration ---
 TARGET_RAG_COLLECTION_NAME = "rag_chunks_all"
-EMBEDDING_MODEL_NAME = "textembedding-gecko@003"
+EMBEDDING_MODEL_NAME = "gemini-embedding-001"  # Updated model name
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 100
 FIRESTORE_BATCH_SIZE = 400
@@ -58,7 +58,7 @@ try:
 
     firestore_service = FirestoreService()
     db = firestore_service.db
-    embedding_model = TextEmbeddingModel.from_pretrained(EMBEDDING_MODEL_NAME)
+    embedding_model = TextEmbeddingModel.from_pretrained(EMBEDDING_MODEL_NAME) # Uses the updated model name
     logger.info(f"Successfully initialized Firestore service and Embedding model '{EMBEDDING_MODEL_NAME}'.")
 except Exception as e:
     logger.error(f"Failed to initialize services: {e}", exc_info=True)
@@ -138,35 +138,48 @@ def prepare_and_embed_chunks(text_content: str, splitter: MarkdownTextSplitter, 
     chunks_with_embeddings = []
     source_text_identifier = metadata.get("title", metadata.get("original_doc_id", "Unknown source"))
 
-    # logger.debug(f"Splitting text for '{source_text_identifier}' (length {len(text_content)})...")
     text_chunks = splitter.split_text(text_content)
-    # logger.info(f"Split '{source_text_identifier}' into {len(text_chunks)} chunks.")
 
     if not text_chunks:
         logger.warning(f"No text chunks generated for '{source_text_identifier}'. Skipping.")
         return []
 
-    try:
-        # logger.debug(f"Getting embeddings for {len(text_chunks)} chunks of '{source_text_identifier}'...")
-        # Vertex AI get_embeddings can take a list of texts
-        embeddings_result = embedding_model.get_embeddings(text_chunks)
-        embeddings_values = [emb.values for emb in embeddings_result]
-        # logger.debug(f"Successfully got embeddings for {len(text_chunks)} chunks.")
-    except Exception as e:
-        logger.error(f"Error getting embeddings for chunks of '{source_text_identifier}': {e}", exc_info=True)
-        return []
+    logger.info(f"Embedding {len(text_chunks)} chunks for '{source_text_identifier}' one by one...")
+    successful_embeddings_count = 0
+    for i, chunk_text in enumerate(text_chunks):
+        try:
+            # logger.debug(f"  Embedding chunk {i+1}/{len(text_chunks)} for '{source_text_identifier}'...")
+            embedding_response = embedding_model.get_embeddings([chunk_text]) # Pass as a list
 
-    for i, (chunk_text, emb_val) in enumerate(zip(text_chunks, embeddings_values)):
-        chunk_doc = {
-            "text": chunk_text,
-            "embedding": Vector(emb_val),
-            "metadata": {
-                **metadata,
-                "chunk_index": i,
-                "chunk_total": len(text_chunks)
-            }
-        }
-        chunks_with_embeddings.append(chunk_doc)
+            if embedding_response and embedding_response[0].values:
+                emb_val = embedding_response[0].values
+                # Firestoreの次元数制限チェックをここで行うこともできる
+                # if len(emb_val) > 2048:
+                #    logger.error(f"  Embedding for chunk {i+1} of '{source_text_identifier}' has dimension {len(emb_val)}, which exceeds Firestore limit of 2048.")
+                #    continue # スキップ
+
+                chunk_doc = {
+                    "text": chunk_text,
+                    "embedding": Vector(emb_val),
+                    "metadata": {
+                        **metadata,
+                        "chunk_index": i,
+                        "chunk_total": len(text_chunks)
+                    }
+                }
+                chunks_with_embeddings.append(chunk_doc)
+                successful_embeddings_count +=1
+            else:
+                logger.error(f"  Failed to get embedding for chunk {i+1} of '{source_text_identifier}'. Response was: {embedding_response}")
+        except Exception as e:
+            logger.error(f"  Exception while embedding chunk {i+1} of '{source_text_identifier}': {e}", exc_info=True)
+            # エラーが発生したチャンクはスキップ
+
+    if successful_embeddings_count < len(text_chunks):
+         logger.warning(f"Successfully embedded {successful_embeddings_count} out of {len(text_chunks)} chunks for '{source_text_identifier}'.")
+
+    if not chunks_with_embeddings:
+        logger.error(f"No chunks were successfully embedded for '{source_text_identifier}'.")
 
     return chunks_with_embeddings
 

@@ -39,10 +39,7 @@ def make_report_by_log(uid) -> str:
     :return: レポート文字列
     """
 
-    log_text = firestore_service.download_log(uid, date=date)
-    if len(log_text) == 0:
-        logger.error("Cannot fetch today log texts")
-        raise Exception(message="作業ログが存在しません。")
+    log_text = firestore_service.download_log(uid)
     log_text_short = log_text[:30].replace("\n", " ")
     logger.info(f"make_report_by_log: uid={uid} log_text={log_text_short}")
 
