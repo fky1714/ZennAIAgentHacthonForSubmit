@@ -31,7 +31,7 @@ class SupportInfo(BaseModel):
     def validate_support_type(cls, v):
         """サポートタイプが有効な値であることを検証"""
         valid_types = [item.value for item in SupportType]
-        if v not in valid_types:
+        if v.lower() not in valid_types:
             raise ValueError(f'support_type must be one of: {", ".join(valid_types)}')
         return v
 
