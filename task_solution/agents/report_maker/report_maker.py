@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime
 from pydantic import BaseModel, Field
 from typing import Dict, Any
 
@@ -28,7 +29,7 @@ class ReportInfo(BaseModel):
             reference = Reference(title=ref_data["title"], url=ref_data["url"])
             references.append(reference)
 
-        current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        current_date = datetime.now().strftime("%Y-%m-%d")
         title_with_date = f"{current_date} {json_data['title']}"
         # クラスメソッドからインスタンスを作成
         return cls(

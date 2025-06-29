@@ -32,13 +32,15 @@ def upload_log_from_base64_screen_shot(
         raise e
 
 
-def make_report_by_log(uid) -> str:
+def make_report_by_log(uid, date=None) -> str:
     """
     指定日付のログをまとめてLLMで作業レポートを生成する
     :param date_str: "YYYY-MM-DD"形式の日付
     :return: レポート文字列
     """
 
+    if date is None:
+        date = datetime.now().strftime("%Y-%m-%d")
     log_text = firestore_service.download_log(uid, date=date)
     if len(log_text) == 0:
         logger.error("Cannot fetch today log texts")
