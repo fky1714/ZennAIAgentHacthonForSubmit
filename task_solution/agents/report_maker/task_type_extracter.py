@@ -29,8 +29,8 @@ class TaskTypeList(BaseModel):
 
 
 class TaskTypeExtractor(BaseVertexAI):
-    def __init__(self, model_name="gemini-2.5-pro-preview-03-25"):
-        super().__init__(model_name=model_name)
+    def __init__(self):
+        super().__init__()
         self.system_prompt = """
         あなたは、ユーザーの作業ログを分析し、タスクの種類を特定するAIアシスタントです。
         ユーザーが行った作業の詳細なログを受け取り、その中からタスクの種類をすべて抽出してください。

@@ -42,8 +42,8 @@ class ImageProcessor:
 
 
 class ScreenAnalyzer(BaseVertexAI):
-    def __init__(self, model_name="gemini-2.5-pro-preview-03-25"):  # Changed model
-        super().__init__(model_name=model_name)
+    def __init__(self):
+        super().__init__()
         self.system_prompt = """
             You are given a screenshot of the user's screen.
             You should analyze the screenshot and extract detail

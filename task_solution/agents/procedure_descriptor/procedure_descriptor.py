@@ -37,8 +37,8 @@ class ProcedureOutput(BaseModel):
 
 
 class ProcedureDescriptor(BaseVertexAI):
-    def __init__(self, model_name="gemini-2.0-flash"):
-        super().__init__(model_name=model_name)
+    def __init__(self):
+        super().__init__()
 
         self.system_prompt = """
 # LLM2 システムプロンプト：手順書構成要素生成

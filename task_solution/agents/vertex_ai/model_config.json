@@ -1,0 +1,12 @@
+{
+  "ChatbotAgent": "gemini-pro",
+  "ProcedureDescriptor": "gemini-pro",
+  "ConfidentialInfoReplacer": "gemini-pro",
+  "VideoAnalyzer": "gemini-pro-vision",
+  "ReportMaker": "gemini-pro",
+  "TaskTypeExtractor": "gemini-pro",
+  "TimeTableMaker": "gemini-pro",
+  "ScreenAnalyzer": "gemini-pro-vision",
+  "NotifyDesider": "gemini-pro",
+  "TaskSupporter": "gemini-pro-vision"
+}

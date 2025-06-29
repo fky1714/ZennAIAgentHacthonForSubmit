@@ -208,8 +208,8 @@ class TimeTableList(BaseModel):
 
 
 class TimeTableMaker(BaseVertexAI):
-    def __init__(self, model_name="gemini-2.5-pro-preview-03-25"):
-        super().__init__(model_name=model_name)
+    def __init__(self):
+        super().__init__()
         self.system_prompt = """
         あなたは、ユーザーの作業ログを分析し、タスクの時間割を作成するAIアシスタントです。
         ユーザーが行った作業の詳細なログと作業種別を受け取り、いつからいつまでどのタスクを行っていたかを示す時間割を作成してください。

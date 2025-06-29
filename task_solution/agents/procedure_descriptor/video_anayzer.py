@@ -4,8 +4,8 @@ from ..vertex_ai.base_vertex_ai import BaseVertexAI
 
 
 class VideoAnalyzer(BaseVertexAI):
-    def __init__(self, model_name="gemini-2.0-flash"):
-        super().__init__(model_name=model_name)
+    def __init__(self):
+        super().__init__()
 
         self.system_prompt = """
 # LLM1 システムプロンプト：PC作業録画解析・詳細情報抽出

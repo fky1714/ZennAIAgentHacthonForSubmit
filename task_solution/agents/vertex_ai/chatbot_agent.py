@@ -4,10 +4,8 @@ from utils.logger import Logger
 
 
 class ChatbotAgent(BaseVertexAI):
-    def __init__(
-        self, model_name="gemini-2.5-pro-preview-03-25"
-    ):  # モデル名を "gemini-pro" に変更
-        super().__init__(model_name)
+    def __init__(self):
+        super().__init__()
         self.logger = Logger(name=self.__class__.__name__).get_logger()
 
     def generate_response(self, user_message: str) -> str:

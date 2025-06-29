@@ -71,8 +71,8 @@ class ImageProcessor:
 
 
 class TaskSupporter(BaseVertexAI):
-    def __init__(self, model_name="gemini-2.5-pro-preview-03-25"):
-        super().__init__(model_name=model_name)
+    def __init__(self):
+        super().__init__()
         self.image_processor = ImageProcessor()
         self.system_prompt = """
 You are an assistant designed to provide **minimal yet effective support** based on Screen Image of a user's activity on their PC.

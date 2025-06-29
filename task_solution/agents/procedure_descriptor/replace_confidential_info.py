@@ -3,8 +3,8 @@ from ..vertex_ai.base_vertex_ai import BaseVertexAI
 
 
 class ConfidentialInfoReplacer(BaseVertexAI):
-    def __init__(self, model_name="gemini-2.0-flash"):
-        super().__init__(model_name=model_name)
+    def __init__(self):
+        super().__init__()
 
         self.system_prompt = """
 あなたは手順書の構成要素から機密情報を特定して優先的に変数化し、その他の情報については文脈に応じて適切に判断する専門家です。セキュリティを最優先としつつ、手順書の用途や対象に適した変数化を行ってください。
