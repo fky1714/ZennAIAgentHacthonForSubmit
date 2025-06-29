@@ -1,12 +1,12 @@
 {
-  "ChatbotAgent": "gemini-pro",
-  "ProcedureDescriptor": "gemini-pro",
-  "ConfidentialInfoReplacer": "gemini-pro",
-  "VideoAnalyzer": "gemini-pro-vision",
-  "ReportMaker": "gemini-pro",
-  "TaskTypeExtractor": "gemini-pro",
-  "TimeTableMaker": "gemini-pro",
-  "ScreenAnalyzer": "gemini-pro-vision",
-  "NotifyDesider": "gemini-pro",
-  "TaskSupporter": "gemini-pro-vision"
+  "ChatbotAgent": "gemini-2.0-flash",
+  "ProcedureDescriptor": "gemini-2.5-pro",
+  "ConfidentialInfoReplacer": "gemini-2.0-flash",
+  "VideoAnalyzer": "gemini-2.5-pro",
+  "ReportMaker": "gemini-2.5-pro",
+  "TaskTypeExtractor": "gemini-2.0-flash",
+  "TimeTableMaker": "gemini-2.0-flash",
+  "ScreenAnalyzer": "gemini-2.0-flash",
+  "NotifyDesider": "gemini-2.0-flash",
+  "TaskSupporter": "gemini-2.0-flash"
 }
