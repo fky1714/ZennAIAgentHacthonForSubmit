@@ -1,13 +1,15 @@
 # from vertex_ai import BaseVertexAI # ダミーのBaseVertexAI
-from task_solution.agents.vertex_ai.base_vertex_ai import BaseVertexAI # 実際のBaseVertexAI
+from agents.vertex_ai.base_vertex_ai import BaseVertexAI  # 実際のBaseVertexAI
 from vertexai.generative_models import GenerationResponse
+
 
 class InformationTypeAgent(BaseVertexAI):
     """
     ユーザーの質問から参照する情報種別（作業レポート、作業手順書、一般知識）を判断するエージェント。
     実際の BaseVertexAI を使用する。
     """
-    def __init__(self, model_name: str = "gemini-1.5-flash-001"): # モデル名は適宜調整
+
+    def __init__(self, model_name: str = "gemini-2.5-pro"):  # モデル名は適宜調整
         super().__init__(model_name)
         # response_scheme を定義する場合
         # self.response_scheme = {
@@ -27,7 +29,6 @@ class InformationTypeAgent(BaseVertexAI):
         # もしくは、BaseVertexAI側のgeneration_config自体を修正する。
         # シンプルにするため、invoke時にgeneration_configを渡さず、デフォルトのテキスト応答を期待する。
         pass
-
 
     def predict(self, user_question: str) -> str:
         """
@@ -57,14 +58,6 @@ class InformationTypeAgent(BaseVertexAI):
 情報種別:"""
 
         try:
-            # BaseVertexAIのinvokeメソッドはcontentsリストを受け取ることを想定しているかもしれないが、
-            # GenerativeModel.generate_content は文字列も受け付ける。
-            # base_vertex_ai.pyの実装では self.model.generate_content(contents, ...)となっているので、
-            # contentsは generate_contentが期待する形式(文字列かリスト)である必要がある。
-            # ここではプロンプト文字列を直接渡す。
-            # response = self.invoke(prompt) # invokeがgeneration_configを使うので、JSON応答を期待してしまう
-
-            # generation_configを使わずに直接モデルを呼び出し、テキスト応答を期待
             response: GenerationResponse = self.model.generate_content(prompt)
 
             self.logger.info(f"Raw response from LLM for info type: {response}")
@@ -75,11 +68,12 @@ class InformationTypeAgent(BaseVertexAI):
             # エラー時はデフォルトで「一般知識」またはより安全な値にフォールバック
             return "一般知識"
 
-
         # LLMの出力が期待する形式であることを確認
         valid_types = ["作業レポート", "作業手順書", "一般知識"]
         if predicted_type not in valid_types:
-            self.logger.warning(f"LLMからの情報種別が予期せぬ値です: {predicted_type}。'一般知識'として扱います。")
+            self.logger.warning(
+                f"LLMからの情報種別が予期せぬ値です: {predicted_type}。'一般知識'として扱います。"
+            )
             # ここでのフォールバックは、新しい種別判断ロジック（その他は作業レポート）と矛盾する可能性あり。
             # プロンプトでより厳密な指示が必要。
             # 一旦、最も安全な「一般知識」にしておくか、あるいはプロンプトの指示に従うことを期待する。
@@ -91,14 +85,19 @@ class InformationTypeAgent(BaseVertexAI):
 
     # _determine_type_for_dummy は不要になるので削除
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     # 簡単なテスト (実際のVertex AI呼び出しが発生するため、認証と環境設定が必要)
     # GOOGLE_APPLICATION_CREDENTIALS, GCP_PROJECT, GCP_LOCATION
-    print("InformationTypeAgentのテストを開始します。実際のVertex AI呼び出しが含まれます。")
+    print(
+        "InformationTypeAgentのテストを開始します。実際のVertex AI呼び出しが含まれます。"
+    )
     print("GCP_PROJECTとGCP_LOCATION環境変数が設定されている必要があります。")
 
     if not os.getenv("GCP_PROJECT"):
-        print("エラー: GCP_PROJECT環境変数が設定されていません。テストをスキップします。")
+        print(
+            "エラー: GCP_PROJECT環境変数が設定されていません。テストをスキップします。"
+        )
     else:
         agent = InformationTypeAgent()
 
@@ -106,15 +105,15 @@ if __name__ == '__main__':
             "先週のシステムAのバグ修正報告書はどこにありますか？": "作業レポート",
             "新しいプリンターの設定方法を教えてください。": "作業手順書",
             "今日の天気は？": "一般知識",
-            "プロジェクトXの進捗について知りたい。": "作業レポート", # 新しいロジックでは作業レポートになるはず
+            "プロジェクトXの進捗について知りたい。": "作業レポート",  # 新しいロジックでは作業レポートになるはず
             "データベースのバックアップ手順を教えて。": "作業手順書",
             "東京の人口は？": "一般知識",
-            "このソフトウェアのライセンスについて教えて。": "作業レポート", # その他なので作業レポート
+            "このソフトウェアのライセンスについて教えて。": "作業レポート",  # その他なので作業レポート
             "PCのメモリ増設の手順を教えてほしい": "作業手順書",
         }
 
         for q, expected_type in test_questions.items():
-            print(f"\n質問: \"{q}\"")
+            print(f'\n質問: "{q}"')
             predicted = agent.predict(q)
             print(f"  期待される種別: {expected_type}")
             print(f"  予測された種別: {predicted}")

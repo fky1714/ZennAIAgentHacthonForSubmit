@@ -13,13 +13,21 @@ from rag_system.agents.answer_generation_agent import AnswerGenerationAgent
 from rag_system.utils.document_retriever import retrieve_work_reports, retrieve_manuals
 
 # 回答に「情報なし」と判定するキーワード（実際のLLMの出力に応じて調整）
-NO_INFO_KEYWORDS = ["見つかりませんでした", "該当する情報はありません", "分かりません", "情報がありません"]
+NO_INFO_KEYWORDS = [
+    "見つかりませんでした",
+    "該当する情報はありません",
+    "分かりません",
+    "情報がありません",
+]
+
 
 class QAWorkflow:
-    def __init__(self, project: str = "your-gcp-project", location: str = "us-central1"):
-        self.info_type_agent = InformationTypeAgent(project=project, location=location)
-        self.answer_gen_agent = AnswerGenerationAgent(project=project, location=location)
-        self.max_retries = 1 # 追加検索は1回まで (合計20件)
+    def __init__(
+        self, project: str = "your-gcp-project", location: str = "us-central1"
+    ):
+        self.info_type_agent = InformationTypeAgent()
+        self.answer_gen_agent = AnswerGenerationAgent()
+        self.max_retries = 1  # 追加検索は1回まで (合計20件)
 
     def _determine_information_type(self, user_question: str) -> str:
         print(f"\nWORKFLOW: 情報種別を判断中...\n質問: {user_question}")
@@ -27,13 +35,26 @@ class QAWorkflow:
         print(f"WORKFLOW: 判断された情報種別: {info_type}")
         return info_type
 
-    def _retrieve_documents(self, information_type: str, user_question: str, uid: str, offset: int = 0, limit: int = 10) -> list[str]:
-        print(f"WORKFLOW: ドキュメントを取得中... UID: {uid}, タイプ: {information_type}, オフセット: {offset}, リミット: {limit}")
+    def _retrieve_documents(
+        self,
+        information_type: str,
+        user_question: str,
+        uid: str,
+        offset: int = 0,
+        limit: int = 10,
+    ) -> list[str]:
+        print(
+            f"WORKFLOW: ドキュメントを取得中... UID: {uid}, タイプ: {information_type}, オフセット: {offset}, リミット: {limit}"
+        )
         documents = []
         if information_type == "作業レポート":
-            documents = retrieve_work_reports(user_query=user_question, uid=uid, offset=offset, limit=limit)
+            documents = retrieve_work_reports(
+                user_query=user_question, uid=uid, offset=offset, limit=limit
+            )
         elif information_type == "作業手順書":
-            documents = retrieve_manuals(user_query=user_question, uid=uid, offset=offset, limit=limit)
+            documents = retrieve_manuals(
+                user_query=user_question, uid=uid, offset=offset, limit=limit
+            )
 
         if documents:
             print(f"WORKFLOW: {len(documents)}件のドキュメントを取得しました。")
@@ -49,17 +70,23 @@ class QAWorkflow:
         print(f"WORKFLOW: 生成された回答: {answer}")
         return answer
 
-    def run(self, user_question: str, uid: str) -> str: # uid 引数を追加
-        print(f"\n====================\nWORKFLOW: Q&A処理開始\nユーザーの質問: \"{user_question}\", UID: {uid}\n====================")
+    def run(self, user_question: str, uid: str) -> str:  # uid 引数を追加
+        print(
+            f'\n====================\nWORKFLOW: Q&A処理開始\nユーザーの質問: "{user_question}", UID: {uid}\n===================='
+        )
 
         information_type = self._determine_information_type(user_question)
 
         if information_type == "一般知識":
             # 一般知識の場合は、直接回答生成エージェントに投げる（ドキュメントなし）
-            print("WORKFLOW: 一般知識に関する質問と判断。ドキュメント検索はスキップします。")
+            print(
+                "WORKFLOW: 一般知識に関する質問と判断。ドキュメント検索はスキップします。"
+            )
             final_answer = self._generate_answer(user_question, [])
             if any(keyword in final_answer for keyword in NO_INFO_KEYWORDS):
-                 final_answer = "ご質問いただいた内容に関する具体的な情報は持ち合わせておりません。"
+                final_answer = (
+                    "ご質問いただいた内容に関する具体的な情報は持ち合わせておりません。"
+                )
             print(f"WORKFLOW: 最終回答 (一般知識): {final_answer}")
             return final_answer
 
@@ -67,7 +94,9 @@ class QAWorkflow:
         final_answer = ""
 
         # 初回検索
-        current_documents = self._retrieve_documents(information_type, user_question, uid=uid, offset=0, limit=10) # uid を渡す
+        current_documents = self._retrieve_documents(
+            information_type, user_question, uid=uid, offset=0, limit=10
+        )  # uid を渡す
         documents.extend(current_documents)
 
         if not documents:
@@ -78,26 +107,35 @@ class QAWorkflow:
         final_answer = self._generate_answer(user_question, documents)
 
         retries = 0
-        while any(keyword in final_answer for keyword in NO_INFO_KEYWORDS) and retries < self.max_retries:
+        while (
+            any(keyword in final_answer for keyword in NO_INFO_KEYWORDS)
+            and retries < self.max_retries
+        ):
             retries += 1
-            print(f"WORKFLOW: 回答に十分な情報がないと判断。追加のドキュメントを検索します。(試行 {retries}/{self.max_retries})")
+            print(
+                f"WORKFLOW: 回答に十分な情報がないと判断。追加のドキュメントを検索します。(試行 {retries}/{self.max_retries})"
+            )
 
-            offset = retries * 10 # 次の10件を取得
-            additional_documents = self._retrieve_documents(information_type, user_question, uid=uid, offset=offset, limit=10) # uid を渡す
+            offset = retries * 10  # 次の10件を取得
+            additional_documents = self._retrieve_documents(
+                information_type, user_question, uid=uid, offset=offset, limit=10
+            )  # uid を渡す
 
             if not additional_documents:
                 print("WORKFLOW: 追加のドキュメントは見つかりませんでした。")
                 break
 
             documents.extend(additional_documents)
-            print(f"WORKFLOW: 合計{len(documents)}件のドキュメントで再度回答を生成します。")
+            print(
+                f"WORKFLOW: 合計{len(documents)}件のドキュメントで再度回答を生成します。"
+            )
             final_answer = self._generate_answer(user_question, documents)
 
         print(f"WORKFLOW: 最終回答: {final_answer}")
         return final_answer
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # 簡単なテスト実行
     # GCPプロジェクトIDとロケーションを環境変数や設定ファイルから読み込むのが望ましい
     workflow = QAWorkflow(project="your-gcp-project", location="us-central1")
@@ -106,7 +144,7 @@ if __name__ == '__main__':
     q1 = "システムAのバグ修正はいつ完了しましたか？"
     # document_retriever.py の retrieve_work_reports のダミーデータに "作業レポート1: システムAのバグ修正を実施しました。" がある
     # AnswerGenerationAgent のダミー predict は具体的な日付までは返さないが、情報がある旨は返すはず
-    test_uid = "test-user-for-qa-workflow" # テスト用UID
+    test_uid = "test-user-for-qa-workflow"  # テスト用UID
     workflow.run(q1, uid=test_uid)
 
     # テストケース2: 作業手順書に関する質問 (追加検索が必要になるかもしれないケース)
@@ -117,7 +155,7 @@ if __name__ == '__main__':
 
     # テストケース3: 一般知識に関する質問
     q3 = "日本の首都はどこですか？"
-    workflow.run(q3, uid=test_uid) # uidは渡されるが一般知識の場合は使われない
+    workflow.run(q3, uid=test_uid)  # uidは渡されるが一般知識の場合は使われない
 
     # テストケース4: 情報が見つからない質問 (作業レポート)
     # 存在しないレポートを要求
