@@ -246,5 +246,9 @@ class FirestoreService:
         doc_ref.delete()
         return True
 
-
-firestore_service = FirestoreService()
+try:
+    firestore_service = FirestoreService()
+    logger.info("FirestoreService initialized successfully.")
+except Exception as e:
+    logger.error(f"Failed to initialize FirestoreService: {e}. Running in fallback mode.")
+    firestore_service = None

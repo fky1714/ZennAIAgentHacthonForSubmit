@@ -14,6 +14,7 @@ from services import (
     generate_notification_message,
 )
 from agents.vertex_ai.chatbot_agent import ChatbotAgent # ChatbotAgent をインポート
+from rag_system.workflows.qa_workflow import QAWorkflow # QAWorkflow をインポート
 
 # Google認証用
 from google.oauth2 import id_token
@@ -45,7 +46,13 @@ else:
         f"GOOGLE_APPLICATION_CREDENTIALS not found in .env, using default: {default_creds_path}"
     )
 
-storage_client = storage.Client()
+try:
+    storage_client = storage.Client()
+    logger.info("Storage client initialized successfully.")
+except Exception as e:
+    storage_client = None
+    logger.error(f"Failed to initialize storage client: {e}. GCS features will be unavailable.")
+
 BUCKET_NAME = os.getenv("BUCKET_NAME")
 
 
@@ -541,6 +548,13 @@ if __name__ == "__main__":
     logger.info(f"Flaskアプリ起動 on port {port}")
     # app.run(host="0.0.0.0", port=port, debug=True) # This line is now the sole app.run at the end of the file
 
+# QAWorkflow のインスタンスをグローバルに作成
+# GCPプロジェクトIDとロケーションを環境変数から取得、なければデフォルト値を使用
+gcp_project = os.getenv("GCP_PROJECT", "your-gcp-project")
+gcp_location = os.getenv("GCP_LOCATION", "us-central1")
+qa_workflow_instance = QAWorkflow(project=gcp_project, location=gcp_location)
+logger.info(f"QAWorkflow initialized with project={gcp_project}, location={gcp_location}")
+
 # Chatbot endpoint
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -555,10 +569,10 @@ def chat():
             logger.warning("メッセージがありません")
             return jsonify({"status": "error", "message": "メッセージがありません"}), 400
 
-        chatbot = ChatbotAgent()
-        bot_reply = chatbot.generate_response(user_message)
+        # グローバルインスタンスを使用
+        bot_reply = qa_workflow_instance.run(user_question=user_message, uid=uid)
 
-        logger.info(f"Bot応答: {bot_reply}")
+        logger.info(f"QAWorkflow応答: {bot_reply}")
         return jsonify({"status": "success", "reply": bot_reply})
 
     except Exception as e:
@@ -569,60 +583,5 @@ def chat():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     logger.info(f"Flaskアプリ起動 on port {port}")
-    app.run(host="0.0.0.0", port=port, debug=True) # This is the single, correct app.run()
-
-    # Register all routes within this block if app is defined here
-    # This is a simplified example; you'd need to move ALL @app.route decorators
-    # and their functions here, or use a function to register them with `app`.
-
-    @app.route("/")
-    def index_moved(): # Function name changed to avoid conflict if you run this multiple times
-        logger.info("index.htmlリクエスト受信 (moved)")
-        return app.send_static_file("index.html")
-
-    @app.route("/test_route", methods=["GET"])
-    def test_route_moved(): # Function name changed
-        logger.info("/test_route called (moved)")
-        return jsonify({"message": "Test route is working (moved)"})
-
-    # Original /chat endpoint - ensure it's defined *after* app is created
-    # For this test, we'll redefine a simplified version here.
-    # IMPORTANT: This will overwrite the global `chat` function if not careful.
-    # For a real fix, you'd move the original chat function here or register it.
-    @app.route("/chat", methods=["POST"])
-    def chat_moved(): # Function name changed
-        try:
-            logger.info("/chat endpoint called (moved)")
-            # uid = get_effective_uid() # This would need session to be set up on this app instance
-            data = request.json
-            user_message = data.get("message")
-            if not user_message:
-                return jsonify({"status": "error", "message": "メッセージがありません"}), 400
-            # chatbot = ChatbotAgent()
-            # bot_reply = chatbot.generate_response(user_message)
-            bot_reply = f"Echo from moved: {user_message}" # Simplified for test
-            return jsonify({"status": "success", "reply": bot_reply})
-        except Exception as e:
-            logger.error(f"チャット処理エラー (moved): {str(e)}")
-            logger.error(traceback.format_exc())
-            return jsonify({"status": "error", "message": "チャット処理中にエラーが発生しました。"}), 500
-
-    # IMPORTANT: You would need to move or re-register ALL your other routes here as well.
-    # For example:
-    # app.add_url_rule('/google_login', view_func=google_login, methods=['POST'])
-    # This requires all your view functions (like google_login, record_frame, etc.)
-    # to be accessible here. Due to the complexity of moving all routes,
-    # this example only redefines a few for testing the concept.
-    # A better long-term solution if this works is to wrap route registration
-    # in a function:
-    # def register_routes(current_app):
-    #     current_app.route(...)(original_index_function)
-    #     current_app.route(...)(original_chat_function)
-    #     # etc.
-    # and then call register_routes(app) here.
-
-    # For now, we are only testing with the routes redefined above.
-
-    # port = int(os.environ.get("PORT", 8080)) # Commented out the second port variable
-    # logger.info(f"Flaskアプリ起動 on port {port} (app defined in main)") # Commented out the second logger
-    # app.run(host="0.0.0.0", port=port, debug=True) # Commented out the second app.run
+    # debug=True は開発時のみ。本番環境では False または適切な設定に。
+    app.run(host="0.0.0.0", port=port, debug=True)
