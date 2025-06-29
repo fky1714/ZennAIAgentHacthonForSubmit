@@ -44,41 +44,50 @@ function handleUserInput(res) {
   // });
 
   // Send user message to backend and display bot response
-  fetch('/chat', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ message: userMessage }),
-  })
-  .then(response => response.json())
-  .then(data => {
-    botui.message.add({
-      loading: true,
-      delay: 500,
-      content: data.reply
-    }).then(() => {
-      // After bot response, ask for new input
-      botui.action.text({
-        action: {
-          placeholder: 'メッセージを入力...'
-        }
-      }).then(handleUserInput);
-    });
-  })
-  .catch((error) => {
-    console.error('Error:', error);
-    botui.message.add({
-      loading: true,
-      delay: 500,
-      content: '申し訳ありません、エラーが発生しました。'
-    }).then(() => {
-      // After error, ask for new input
-      botui.action.text({
-        action: {
-          placeholder: 'メッセージを入力...'
-        }
-      }).then(handleUserInput);
+  // Store the promise returned by botui.message.add for the loading message
+  let loadingMessagePromise = botui.message.add({
+    loading: true,
+    content: '考え中...' // Temporary content for loading
+  });
+
+  loadingMessagePromise.then(loadingMessageIndex => {
+    // `loadingMessageIndex` is the index of the message just added.
+    fetch('/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ message: userMessage }),
+    })
+    .then(response => response.json())
+    .then(data => {
+      // Update the loading message with the actual reply
+      botui.message.update(loadingMessageIndex, {
+        loading: false, // Stop loading animation
+        content: data.reply
+      }).then(() => {
+        // After bot response, ask for new input
+        botui.action.text({
+          action: {
+            placeholder: 'メッセージを入力...'
+          }
+        }).then(handleUserInput);
+      });
+    })
+    .catch((error) => {
+      console.error('Error:', error);
+      // Update the loading message with an error message
+      botui.message.update(loadingMessageIndex, {
+        loading: false, // Stop loading animation
+        content: '申し訳ありません、エラーが発生しました。'
+      }).then(() => {
+        // After error, ask for new input
+        botui.action.text({
+          action: {
+            placeholder: 'メッセージを入力...'
+          }
+        }).then(handleUserInput);
+      });
     });
   });
 }
