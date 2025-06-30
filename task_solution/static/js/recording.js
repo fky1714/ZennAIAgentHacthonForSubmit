@@ -196,7 +196,7 @@ class Recorder {
                 const notificationLogArea = document.getElementById('notificationLogArea');
                 if (notificationLogArea) {
                     const logEntry = document.createElement('div');
-                    logEntry.textContent = data.notification_message;
+                    logEntry.innerHTML = marked.parse(data.notification_message);
                     logEntry.style.padding = "4px 0";
                     logEntry.style.borderBottom = "1px solid #e0e0e0";
                     logEntry.style.fontSize = "0.95em";
@@ -819,7 +819,7 @@ function startSupportCheck() {
                 const notificationLogArea = document.getElementById('notificationLogArea');
                 if (notificationLogArea) {
                     const logEntry = document.createElement('div');
-                    logEntry.textContent = data.notification_message;
+                    logEntry.innerHTML = marked.parse(data.notification_message);
                     logEntry.style.padding = "4px 0";
                     logEntry.style.borderBottom = "1px solid #e0e0e0";
                     logEntry.style.fontSize = "0.95em";
