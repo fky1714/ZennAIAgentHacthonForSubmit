@@ -62,9 +62,12 @@ function handleUserInput(res) {
     .then(response => response.json())
     .then(data => {
       // Update the loading message with the actual reply
+      // Convert markdown to HTML using marked.js
+      const htmlReply = marked(data.reply);
       botui.message.update(loadingMessageIndex, {
         loading: false, // Stop loading animation
-        content: data.reply
+        content: htmlReply,
+        type: 'html' // Tell BotUI to render content as HTML
       }).then(() => {
         // After bot response, ask for new input
         botui.action.text({
