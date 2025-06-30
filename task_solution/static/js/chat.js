@@ -50,7 +50,6 @@ function initializeChat() {
 
   // Function to handle user input
   function handleUserInput(res) {
-    console.log('typeof marked in handleUserInput (point 1):', typeof marked, 'window.marked exists:', typeof window.marked !== 'undefined');
     const userMessage = res.value;
 
     let loadingMessagePromise = botui.message.add({
@@ -69,7 +68,6 @@ function initializeChat() {
       .then(response => response.json())
       .then(data => {
         // Ensure marked is available before using it
-        console.log('typeof marked in handleUserInput (point 2):', typeof marked, 'window.marked exists:', typeof window.marked !== 'undefined');
         if (typeof marked === 'function') {
           const htmlReply = marked(data.reply);
           botui.message.update(loadingMessageIndex, {
@@ -141,18 +139,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const interval = 100; // 100ms
 
   function checkDependenciesAndInit() {
-    if (typeof Vue !== 'undefined' && typeof BotUI !== 'undefined' && typeof marked !== 'undefined') {
-      console.log("All dependencies (Vue, BotUI, marked) loaded.");
+    if (typeof Vue !== 'undefined' && typeof BotUI !== 'undefined' && typeof marked === 'function') {
+      console.log("All dependencies (Vue, BotUI, marked) loaded and marked is a function.");
       initializeChat();
     } else {
       attempts++;
       if (attempts < maxAttempts) {
         if (typeof Vue === 'undefined') console.log("Vue not loaded yet. Attempt: ", attempts);
         if (typeof BotUI === 'undefined') console.log("BotUI not loaded yet. Attempt: ", attempts);
-        if (typeof marked === 'undefined') console.log("marked not loaded yet. Attempt: ", attempts);
+        if (typeof marked !== 'function') console.log("marked is not a function yet. typeof marked:", typeof marked, ". Attempt: ", attempts);
         setTimeout(checkDependenciesAndInit, interval);
       } else {
-        console.error("Failed to load all dependencies (Vue, BotUI, marked) after multiple attempts. Chat initialization aborted.");
+        console.error("Failed to load all dependencies (Vue, BotUI, marked as function) after multiple attempts. Chat initialization aborted. Last typeof marked:", typeof marked);
       }
     }
   }
