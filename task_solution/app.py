@@ -1,5 +1,5 @@
 import os
-import traceback # Ensure this import is present at the top of app.py
+import traceback  # Ensure this import is present at the top of app.py
 from dotenv import load_dotenv
 import datetime
 from google.cloud import storage
@@ -13,8 +13,8 @@ from services import (
     make_procedure_from_mp4,
     generate_notification_message,
 )
-from agents.vertex_ai.chatbot_agent import ChatbotAgent # ChatbotAgent をインポート
-from rag_system.workflows.qa_workflow import QAWorkflow # QAWorkflow をインポート
+from agents.vertex_ai.chatbot_agent import ChatbotAgent  # ChatbotAgent をインポート
+from rag_system.workflows.qa_workflow import QAWorkflow  # QAWorkflow をインポート
 
 # Google認証用
 from google.oauth2 import id_token
@@ -31,7 +31,7 @@ logger = Logger(name="app").get_logger()
 # Load environment variables from .env file
 load_dotenv()
 
-app = Flask(__name__) #  Moved app initialization to top level
+app = Flask(__name__)  #  Moved app initialization to top level
 app.secret_key = "ThisIsHelloween"
 
 # Set Google Cloud credentials
@@ -51,7 +51,9 @@ try:
     logger.info("Storage client initialized successfully.")
 except Exception as e:
     storage_client = None
-    logger.error(f"Failed to initialize storage client: {e}. GCS features will be unavailable.")
+    logger.error(
+        f"Failed to initialize storage client: {e}. GCS features will be unavailable."
+    )
 
 BUCKET_NAME = os.getenv("BUCKET_NAME")
 
@@ -280,25 +282,38 @@ def api_update_procedure(procedure_id):
         content = data.get("content", "")
 
         # Firestoreの手順書はtask_name=procedure_idで管理されている
-        updated_procedure = firestore_service.update_procedure(effective_uid, procedure_id, content)
+        updated_procedure = firestore_service.update_procedure(
+            effective_uid, procedure_id, content
+        )
 
-        if updated_procedure is None: # Or some other way to check if update failed in service layer
-            logger.warning(f"Update procedure returned None for procedure_id: {procedure_id}, user: {effective_uid}")
+        if (
+            updated_procedure is None
+        ):  # Or some other way to check if update failed in service layer
+            logger.warning(
+                f"Update procedure returned None for procedure_id: {procedure_id}, user: {effective_uid}"
+            )
             # Consider if firestore_service.update_procedure can return None for a "not found" or "failed update"
             # For now, let's assume it raises an exception on failure or returns the updated doc.
             # If it can return None for a failure that isn't an exception, that needs specific handling.
 
-        logger.info(f"Procedure {procedure_id} updated successfully for user {effective_uid}.")
+        logger.info(
+            f"Procedure {procedure_id} updated successfully for user {effective_uid}."
+        )
         return jsonify({"status": "success", "content": updated_procedure})
 
     except Exception as e:
         logger.error(f"Error in api_update_procedure for procedure_id {procedure_id}:")
         logger.error(traceback.format_exc())
-        return jsonify({
-            "status": "error",
-            "message": "An unexpected error occurred on the server while updating the procedure.",
-            "detail": str(e)
-        }), 500
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "An unexpected error occurred on the server while updating the procedure.",
+                    "detail": str(e),
+                }
+            ),
+            500,
+        )
 
 
 @app.route("/api/procedures/<procedure_id>", methods=["DELETE"])
@@ -552,8 +567,11 @@ if __name__ == "__main__":
 # GCPプロジェクトIDとロケーションを環境変数から取得、なければデフォルト値を使用
 gcp_project = os.getenv("GCP_PROJECT", "your-gcp-project")
 gcp_location = os.getenv("GCP_LOCATION", "us-central1")
-qa_workflow_instance = QAWorkflow(project=gcp_project, location=gcp_location)
-logger.info(f"QAWorkflow initialized with project={gcp_project}, location={gcp_location}")
+qa_workflow_instance = QAWorkflow()
+logger.info(
+    f"QAWorkflow initialized with project={gcp_project}, location={gcp_location}"
+)
+
 
 # Chatbot endpoint
 @app.route("/chat", methods=["POST"])
@@ -567,7 +585,10 @@ def chat():
 
         if not user_message:
             logger.warning("メッセージがありません")
-            return jsonify({"status": "error", "message": "メッセージがありません"}), 400
+            return (
+                jsonify({"status": "error", "message": "メッセージがありません"}),
+                400,
+            )
 
         # グローバルインスタンスを使用
         bot_reply = qa_workflow_instance.run(user_question=user_message, uid=uid)
@@ -578,7 +599,13 @@ def chat():
     except Exception as e:
         logger.error(f"チャット処理エラー: {str(e)}")
         logger.error(traceback.format_exc())
-        return jsonify({"status": "error", "message": "チャット処理中にエラーが発生しました。"}), 500
+        return (
+            jsonify(
+                {"status": "error", "message": "チャット処理中にエラーが発生しました。"}
+            ),
+            500,
+        )
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
