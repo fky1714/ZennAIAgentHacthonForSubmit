@@ -1,10 +1,16 @@
 let botui;
 let initialMessageSent = false;
 
-document.addEventListener('DOMContentLoaded', () => {
+function initializeChat() {
   // Ensure Vue and BotUI are loaded before initializing BotUI
   if (typeof Vue === 'undefined' || typeof BotUI === 'undefined') {
-    console.error('Vue.js or BotUI has not been loaded yet.');
+    console.error('Vue.js or BotUI has not been loaded yet. Retrying...');
+    setTimeout(initializeChat, 100); // Retry after a short delay
+    return;
+  }
+  if (typeof marked === 'undefined') {
+    console.error('marked.js has not been loaded yet. Retrying...');
+    setTimeout(initializeChat, 100); // Retry after a short delay
     return;
   }
 
@@ -61,6 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
       })
       .then(response => response.json())
       .then(data => {
+        // Ensure marked is available before using it
         if (typeof marked === 'function') {
           const htmlReply = marked(data.reply);
           botui.message.update(loadingMessageIndex, {
@@ -75,11 +82,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }).then(handleUserInput);
           });
         } else {
-          console.error('marked.js is not loaded or not a function.');
-          // Fallback to plain text if marked is not available
+          // This should ideally not be reached if initializeChat waits for marked
+          console.error('marked.js is not loaded or not a function at the time of use.');
           botui.message.update(loadingMessageIndex, {
             loading: false,
-            content: data.reply // Display as plain text
+            content: data.reply // Fallback to plain text
           }).then(() => {
             botui.action.text({
               action: {
@@ -107,23 +114,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Handle initial chat open state from localStorage
   const chatOpenState = localStorage.getItem('chatOpen');
-  if (chatOpenState === 'true') {
+  if (chatUiContainer && chatOpenState === 'true') { // Ensure chatUiContainer exists
     chatUiContainer.style.display = 'block';
     if (!initialMessageSent) {
-      // Ensure BotUI is initialized before sending welcome message
-      if (botui) {
-        sendWelcomeMessage();
-      } else {
-        // This case should ideally not happen if DOMContentLoaded waits for all scripts
-        console.warn("BotUI not ready when trying to send welcome message from localStorage state.");
-      }
+      sendWelcomeMessage(); // Assumes botui is initialized by now
     }
-  } else {
+  } else if (chatUiContainer) { // Ensure chatUiContainer exists
     chatUiContainer.style.display = 'none';
   }
 
   window.addEventListener('beforeunload', () => {
-    const isChatOpen = chatUiContainer.style.display === 'block';
-    localStorage.setItem('chatOpen', isChatOpen);
+    if (chatUiContainer) { // Ensure chatUiContainer exists
+      const isChatOpen = chatUiContainer.style.display === 'block';
+      localStorage.setItem('chatOpen', isChatOpen);
+    }
   });
+
+  console.log("Chat initialized successfully.");
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  let attempts = 0;
+  const maxAttempts = 50; // Try for 5 seconds (50 * 100ms)
+  const interval = 100; // 100ms
+
+  function checkDependenciesAndInit() {
+    if (typeof Vue !== 'undefined' && typeof BotUI !== 'undefined' && typeof marked !== 'undefined') {
+      console.log("All dependencies (Vue, BotUI, marked) loaded.");
+      initializeChat();
+    } else {
+      attempts++;
+      if (attempts < maxAttempts) {
+        if (typeof Vue === 'undefined') console.log("Vue not loaded yet. Attempt: ", attempts);
+        if (typeof BotUI === 'undefined') console.log("BotUI not loaded yet. Attempt: ", attempts);
+        if (typeof marked === 'undefined') console.log("marked not loaded yet. Attempt: ", attempts);
+        setTimeout(checkDependenciesAndInit, interval);
+      } else {
+        console.error("Failed to load all dependencies (Vue, BotUI, marked) after multiple attempts. Chat initialization aborted.");
+      }
+    }
+  }
+  checkDependenciesAndInit();
 });
