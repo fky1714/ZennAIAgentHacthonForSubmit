@@ -9,9 +9,11 @@
   <link rel="stylesheet" href="/static/css/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/botui/build/botui.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/botui/build/botui-theme-default.css">
+  <script>console.log('End of head, typeof window.marked:', typeof window.marked, String(window.marked));</script>
 </head>
 
 <body>
+  <script>console.log('Immediately after body tag, typeof window.marked:', typeof window.marked, String(window.marked));</script>
   <div id="chatBotWidget" class="chat-widget">💬</div>
   <div id="botui-app" class="botui-app-container">
     <bot-ui></bot-ui>
