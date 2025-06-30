@@ -50,6 +50,7 @@ function initializeChat() {
 
   // Function to handle user input
   function handleUserInput(res) {
+    console.log('typeof marked in handleUserInput (point 1):', typeof marked, 'window.marked exists:', typeof window.marked !== 'undefined');
     const userMessage = res.value;
 
     let loadingMessagePromise = botui.message.add({
@@ -68,6 +69,7 @@ function initializeChat() {
       .then(response => response.json())
       .then(data => {
         // Ensure marked is available before using it
+        console.log('typeof marked in handleUserInput (point 2):', typeof marked, 'window.marked exists:', typeof window.marked !== 'undefined');
         if (typeof marked === 'function') {
           const htmlReply = marked(data.reply);
           botui.message.update(loadingMessageIndex, {
