@@ -190,6 +190,7 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <!-- marked.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>console.log('Immediately after marked.min.js script tag, typeof window.marked:', typeof window.marked, 'window.marked is func:', window.marked && window.marked.name);</script>
 
   <!-- Flask の静的ファイルとして読み込む場合、絶対パスで /static を明記 -->
   <!-- Googleログイン関係 -->
@@ -202,8 +203,11 @@
   <script src="/static/js/menu.js"></script>
   <script src="/static/js/recording.js"></script>
   <script src="https://cdn.jsdelivr.net/vue/latest/vue.min.js"></script>
+  <script>console.log('Immediately after vue.min.js script tag, typeof window.marked:', typeof window.marked, 'window.marked is func:', window.marked && window.marked.name);</script>
   <script src="https://cdn.jsdelivr.net/npm/botui/build/botui.js"></script>
+  <script>console.log('Immediately after botui.js script tag, typeof window.marked:', typeof window.marked, 'window.marked is func:', window.marked && window.marked.name);</script>
   <script src="/static/js/chat.js"></script>
+  <script>console.log('Immediately after chat.js script tag, typeof window.marked:', typeof window.marked, 'window.marked is func:', window.marked && window.marked.name);</script>
   <!-- ログイン状態確認用スクリプト -->
   <script>
     function checkLogin() {

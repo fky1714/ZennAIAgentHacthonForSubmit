@@ -135,10 +135,15 @@ function initializeChat() {
 
 document.addEventListener('DOMContentLoaded', () => {
   let attempts = 0;
-  const maxAttempts = 50; // Try for 5 seconds (50 * 100ms)
+  const maxAttempts = 100; // Try for 10 seconds (100 * 100ms)
   const interval = 100; // 100ms
+  let markedWasFunctionAtLeastOnce = false;
 
   function checkDependenciesAndInit() {
+    if (typeof marked === 'function') {
+      markedWasFunctionAtLeastOnce = true;
+    }
+
     if (typeof Vue !== 'undefined' && typeof BotUI !== 'undefined' && typeof marked === 'function') {
       console.log("All dependencies (Vue, BotUI, marked) loaded and marked is a function.");
       initializeChat();
@@ -150,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof marked !== 'function') console.log("marked is not a function yet. typeof marked:", typeof marked, ". Attempt: ", attempts);
         setTimeout(checkDependenciesAndInit, interval);
       } else {
-        console.error("Failed to load all dependencies (Vue, BotUI, marked as function) after multiple attempts. Chat initialization aborted. Last typeof marked:", typeof marked);
+        console.error(`Failed to load all dependencies (Vue, BotUI, marked as function) after ${maxAttempts} attempts. Chat initialization aborted. Last typeof marked: ${typeof marked}. Was marked ever a function during polling: ${markedWasFunctionAtLeastOnce}`);
       }
     }
   }
