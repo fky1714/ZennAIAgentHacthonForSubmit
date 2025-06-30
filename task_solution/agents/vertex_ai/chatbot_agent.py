@@ -15,8 +15,7 @@ class ChatbotAgent(BaseVertexAI):
         self.logger.info(f"Generating response for: {user_message}")
 
         # Vertex AIのモデルに渡すコンテンツを作成
-        # プロンプトは適宜調整してください
-        prompt = f"""ユーザーからの以下のメッセージに対して、親切かつ簡潔に応答してください。
+        prompt = f"""ユーザーからの以下のメッセージに対して、親切かつ簡潔に、マークダウン形式ではなくプレーンテキストで回答してください。
 
 ユーザーメッセージ: {user_message}
 

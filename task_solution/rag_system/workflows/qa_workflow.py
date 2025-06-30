@@ -10,9 +10,11 @@ if project_root not in sys.path:
 
 from rag_system.agents.information_type_agent import InformationTypeAgent
 from rag_system.agents.answer_generation_agent import AnswerGenerationAgent
+from agents.vertex_ai.chatbot_agent import ChatbotAgent  # ChatbotAgent をインポート
 from rag_system.utils.document_retriever import retrieve_work_reports, retrieve_manuals
 
 # 回答に「情報なし」と判定するキーワード（実際のLLMの出力に応じて調整）
+# このキーワードは AnswerGenerationAgent 側での判定に使われるため、QAWorkflowからは削除しても良い
 NO_INFO_KEYWORDS = [
     "見つかりませんでした",
     "該当する情報はありません",
@@ -22,11 +24,10 @@ NO_INFO_KEYWORDS = [
 
 
 class QAWorkflow:
-    def __init__(
-        self, project: str = "your-gcp-project", location: str = "us-central1"
-    ):
+    def __init__(self): # project と location の引数を削除
         self.info_type_agent = InformationTypeAgent()
         self.answer_gen_agent = AnswerGenerationAgent()
+        self.chatbot_agent = ChatbotAgent()
         self.max_retries = 1  # 追加検索は1回まで (合計20件)
 
     def _determine_information_type(self, user_question: str) -> str:
@@ -58,16 +59,20 @@ class QAWorkflow:
 
         if documents:
             print(f"WORKFLOW: {len(documents)}件のドキュメントを取得しました。")
-            # for i, doc in enumerate(documents):
-            # print(f"  ドキュメント {i+1}: {doc[:100]}...") # 長すぎる場合は省略
         else:
             print("WORKFLOW: ドキュメントは見つかりませんでした。")
         return documents
 
-    def _generate_answer(self, user_question: str, documents: list[str]) -> str:
-        print("WORKFLOW: 回答を生成中...")
+    def _generate_rag_answer(self, user_question: str, documents: list[str]) -> str:
+        print("WORKFLOW: RAG回答を生成中...")
         answer = self.answer_gen_agent.predict(user_question, documents)
-        print(f"WORKFLOW: 生成された回答: {answer}")
+        print(f"WORKFLOW: 生成されたRAG回答: {answer}")
+        return answer
+
+    def _generate_general_answer(self, user_question: str) -> str:
+        print("WORKFLOW: 一般知識の回答を生成中...")
+        answer = self.chatbot_agent.generate_response(user_question)
+        print(f"WORKFLOW: 生成された一般知識回答: {answer}")
         return answer
 
     def run(self, user_question: str, uid: str) -> str:  # uid 引数を追加
@@ -78,15 +83,11 @@ class QAWorkflow:
         information_type = self._determine_information_type(user_question)
 
         if information_type == "一般知識":
-            # 一般知識の場合は、直接回答生成エージェントに投げる（ドキュメントなし）
             print(
-                "WORKFLOW: 一般知識に関する質問と判断。ドキュメント検索はスキップします。"
+                "WORKFLOW: 一般知識に関する質問と判断。ChatbotAgent を使用します。"
             )
-            final_answer = self._generate_answer(user_question, [])
-            if any(keyword in final_answer for keyword in NO_INFO_KEYWORDS):
-                final_answer = (
-                    "ご質問いただいた内容に関する具体的な情報は持ち合わせておりません。"
-                )
+            final_answer = self._generate_general_answer(user_question)
+            # 一般知識の場合、NO_INFO_KEYWORDS によるチェックは ChatbotAgent の応答の性質と合わないため削除
             print(f"WORKFLOW: 最終回答 (一般知識): {final_answer}")
             return final_answer
 
@@ -96,17 +97,20 @@ class QAWorkflow:
         # 初回検索
         current_documents = self._retrieve_documents(
             information_type, user_question, uid=uid, offset=0, limit=10
-        )  # uid を渡す
+        )
         documents.extend(current_documents)
 
         if not documents:
+            # ドキュメントが見つからない場合は、その旨を伝える固定メッセージ
             final_answer = "関連する情報が見つかりませんでした。"
             print(f"WORKFLOW: 最終回答 (ドキュメントなし): {final_answer}")
             return final_answer
 
-        final_answer = self._generate_answer(user_question, documents)
+        final_answer = self._generate_rag_answer(user_question, documents)
 
         retries = 0
+        # AnswerGenerationAgent が「情報なし」系のキーワードを返した場合に追加検索
+        # NO_INFO_KEYWORDS は AnswerGenerationAgent の応答を想定して使用
         while (
             any(keyword in final_answer for keyword in NO_INFO_KEYWORDS)
             and retries < self.max_retries
@@ -116,10 +120,10 @@ class QAWorkflow:
                 f"WORKFLOW: 回答に十分な情報がないと判断。追加のドキュメントを検索します。(試行 {retries}/{self.max_retries})"
             )
 
-            offset = retries * 10  # 次の10件を取得
+            offset = retries * 10
             additional_documents = self._retrieve_documents(
                 information_type, user_question, uid=uid, offset=offset, limit=10
-            )  # uid を渡す
+            )
 
             if not additional_documents:
                 print("WORKFLOW: 追加のドキュメントは見つかりませんでした。")
@@ -129,9 +133,10 @@ class QAWorkflow:
             print(
                 f"WORKFLOW: 合計{len(documents)}件のドキュメントで再度回答を生成します。"
             )
-            final_answer = self._generate_answer(user_question, documents)
+            final_answer = self._generate_rag_answer(user_question, documents)
 
-        print(f"WORKFLOW: 最終回答: {final_answer}")
+        # RAGの最終回答ログを修正
+        print(f"WORKFLOW: 最終回答 (RAG): {final_answer}")
         return final_answer
 
 
